@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.13"
 
 fastapi = "0.115.0"
 uvicorn = { version = "0.30.6", extras = ["standard"] }
@@ -16,8 +16,7 @@ pydantic-settings = "2.5.2"
 email-validator = "2.2.0"
 sqlalchemy = "2.0.35"
 alembic = "1.13.3"
-asyncpg = "0.29.0"
-psycopg2-binary = "2.9.9"
+asyncpg = "^0.31.0"
 celery = "5.4.0"
 redis = "5.0.8"
 flower = "2.0.1"
@@ -51,6 +50,7 @@ google-cloud-aiplatform = { version = "^1.68.0", optional = true }
 # (torch), so it's an optional extra too; without it AI_EMBEDDING_BACKEND
 # falls back to the dependency-light perceptual-hash embedder.
 sentence-transformers = { version = "3.1.1", optional = true }
+psycopg2-binary = "^2.9.12"
 
 [tool.poetry.extras]
 gcp = ["google-cloud-storage", "google-cloud-aiplatform"]
@@ -71,7 +71,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 110
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
