@@ -1,0 +1,81 @@
+# Redis is NOT run here — production points REDIS_URL/CELERY_BROKER_URL/
+# CELERY_RESULT_BACKEND (in .env) at a managed instance (AWS ElastiCache or
+# GCP Memorystore), per LOCKED_Design_v1.0.md §7.3's scaling path. For local
+# dev without a managed instance, run one yourself, e.g.:
+#   docker run -d --name dev-redis -p 6379:6379 redis:7-alpine
+# and set REDIS_URL=redis://localhost:6379/0 (etc.) in .env.
+services:
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://localization:password@db:5432/localization
+      - DATABASE_URL_SYNC=postgresql+psycopg2://localization:password@db:5432/localization
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    depends_on:
+      - db
+      - chromadb
+    volumes:
+      - ./data/storage:/app/data/storage
+
+  celery_worker:
+    build: .
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=3
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://localization:password@db:5432/localization
+      - DATABASE_URL_SYNC=postgresql+psycopg2://localization:password@db:5432/localization
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    depends_on:
+      - db
+      - chromadb
+    volumes:
+      - ./data/storage:/app/data/storage
+
+  celery_beat:
+    build: .
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://localization:password@db:5432/localization
+      - DATABASE_URL_SYNC=postgresql+psycopg2://localization:password@db:5432/localization
+    depends_on:
+      - db
+
+  flower:
+    build: .
+    command: celery -A app.tasks.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=localization
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=localization
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  db_data:
+  chroma_data:

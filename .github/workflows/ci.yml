@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: localization
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: knewron_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U localization"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://localization:password@localhost:5432/knewron_test
+      DATABASE_URL_SYNC: postgresql+psycopg2://localization:password@localhost:5432/knewron_test
+      REDIS_URL: redis://localhost:6379/15
+      SECRET_KEY: ci-test-secret
+      STORAGE_BACKEND: local
+      STORAGE_LOCAL_ROOT: ./data/test-storage
+      AI_EMBEDDING_BACKEND: phash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Lint (ruff)
+        run: pip install ruff && ruff check app
+
+      - name: Run tests
+        run: pytest --cov=app --cov-report=term-missing
