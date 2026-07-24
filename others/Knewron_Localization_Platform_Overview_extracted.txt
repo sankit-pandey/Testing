@@ -1,0 +1,331 @@
+KNEWRON
+
+Localization Platform
+
+API & Database Technical Overview
+
+An end-to-end reference describing the data model, service APIs, and automated image-and-text localization workflows that power the Knewron Localization Platform.
+
+Contents
+
+1. Platform Overview
+
+The Knewron Localization Platform automates the translation of technical documents — including Instructions for Use (IFU) and similar regulated content — by localizing both the text and the images they contain. Documents frequently embed images that themselves hold text (diagrams, labelled figures, warning graphics); translating the surrounding text alone leaves these images in the source language. The platform closes that gap.
+
+Before a document is sent for text translation, the platform inspects every embedded image, detects visually matching images it has seen before, and either reuses an existing translated version or generates a new one via Figma. The image-localized document is then passed to Lokalise for text translation, and the fully localized result is returned to the user.
+
+Key components
+
+Knewron UI & APIs — upload, job orchestration, status tracking, and download.
+
+ChromaDB — vector store used to match images against previously processed ones.
+
+Figma — template-driven generation of translated image frames from variables.
+
+Lokalise — third-party platform that performs the document text translation.
+
+2. Database Schema
+
+The data model is organized around products and projects, with a master localization job that fans out into per-language sub-jobs. The tables below describe each entity and its columns.
+
+2.1  Products
+
+The top-level catalog entity. Multiple products can be created (for example, an “Imaging Overview” product).
+
+2.2  Projects
+
+Projects are created inside a product. Each project maps to a corresponding project on the Lokalise platform.
+
+2.3  Localization
+
+The master table created when a document is uploaded. One row is created per uploaded file.
+
+2.4  LocalizationJob
+
+A per-language sub-job. When a file is uploaded with multiple target languages selected, one master Localization row is created and one LocalizationJob row is inserted for each selected language. For example, selecting two languages creates one master row and two sub-job rows.
+
+2.5  Localization_job_logs
+
+Detailed logs for sub-jobs — for example, when translation started or when image translation completed.
+
+2.6  Figma_images
+
+A short log for the Figma plugin, recording which images were populated into ChromaDB.
+
+3. API Reference
+
+The platform exposes REST endpoints grouped into four functional areas: products & languages, projects, Figma, and localization.
+
+3.1  Product & Language APIs
+
+3.2  Project APIs
+
+3.3  Figma APIs
+
+3.4  Localization APIs
+
+4. Image Translation Workflow
+
+This is the end-to-end process the platform uses to identify, translate, and replace images containing text within an uploaded document, before the document is sent to Lokalise for text localization.
+
+1.  Document upload and processing
+
+A user uploads a document through the Knewron UI. The document is processed and all embedded images are extracted for analysis.
+
+2.  Image matching using ChromaDB
+
+Each extracted image is searched against the ChromaDB vector database to determine whether a visually similar image already exists.
+
+If the similarity score exceeds 90%, the image is treated as a match.
+
+The system retrieves the matched image's metadata, including source text and any previously translated versions.
+
+3.  Reuse existing translated images
+
+The platform checks whether a translated version already exists for the requested target language.
+
+If available, the existing translated image is reused.
+
+This avoids retranslation and improves overall processing efficiency.
+
+4.  Generate new translated images
+
+If no translated image exists for the selected language, a new one is generated:
+
+The source text is extracted from the image metadata.
+
+The extracted text is translated into the target language.
+
+The translated text is populated into predefined Figma variables.
+
+Figma generates a new image frame containing the translated text.
+
+The translated image is exported as a PNG file.
+
+5.  Image replacement
+
+The newly generated or previously translated image replaces the original in the document. If no suitable match is found in ChromaDB, the original image is retained unchanged.
+
+6.  Repeat for all images
+
+The platform continues until every image in the document has been evaluated and replaced where applicable.
+
+7.  Generate image-translated document
+
+Once image processing is complete, the platform produces an updated document containing the translated or reused images.
+
+8.  Text translation using Lokalise
+
+The image-translated document is uploaded to Lokalise, which extracts the text, translates it into the selected languages, generates localized versions, and makes them available for download.
+
+9.  Translation completion
+
+The fully localized documents — containing both translated images and translated text — are delivered to the user.
+
+5. End-to-End Sequence Flow
+
+The complete interaction between the user, the Knewron platform components, Figma, ChromaDB, and Lokalise unfolds across three phases: document ingestion, image localization, and final document translation.
+
+Phase 1 — Initiation and content extraction
+
+The user uploads a document through the Knewron UI.
+
+The UI sends the document to the Document Processing API.
+
+The API parses the document contents.
+
+All embedded images are extracted for analysis and localization.
+
+At this stage the platform has separated the document into text and image components.
+
+Phase 2 — Image processing and localization loop
+
+Each extracted image is processed individually within a loop.
+
+Image similarity search
+
+The Document Processing API searches the image in the ChromaDB vector store.
+
+ChromaDB returns a similarity score indicating whether a matching image exists.
+
+Scenario A — match score below 90%
+
+The image is not considered a reliable match.
+
+No image translation is performed; the original image is retained.
+
+Scenario B — match score at or above 90%
+
+The platform retrieves the image metadata from ChromaDB.
+
+Metadata includes source text, associated Figma frame information, and any previously generated translations.
+
+Reuse existing translation
+
+If a translated image already exists for the requested target language, it is reused — no new generation is required — and it replaces the source image. This significantly reduces processing time and localization cost.
+
+Generate new translated image
+
+If no translated image exists:
+
+The source text is retrieved from the image metadata.
+
+The translation service translates the text into the target language.
+
+The translated text is sent to the Figma API, which populates predefined variables in the design template.
+
+Figma renders the translated frame and exports it as a PNG image.
+
+The PNG is returned to the Document Processing API and the original image is replaced.
+
+The loop then continues with the next image until all images have been processed.
+
+Phase 3 — Document generation and final localization
+
+The platform generates an image-localized version of the document.
+
+The updated document is uploaded to Lokalise.
+
+Lokalise extracts translatable content and translates it into all selected languages.
+
+Lokalise generates fully localized document versions and makes them available for download.
+
+Translation completion
+
+Translated documents are returned to the Knewron platform.
+
+Users download the localized documents through the Knewron UI.
+
+The localization workflow is marked as completed.
+
+6. Figma Image-Preparation Workflow
+
+The Figma plugin prepares design files for image localization by extracting text content, converting text layers into variables, and exporting metadata that the platform later uses to generate translated images.
+
+1.  Access the Figma workspace
+
+The user logs into Figma and opens the IFU (Instructions for Use) workspace. To preserve the original design, a copy of the workspace is created before processing begins.
+
+2.  Plugin execution
+
+The user runs the Build & Export Metadata plugin within the cloned workspace. The plugin analyzes the design and prepares all text elements for translation.
+
+3.  Text node discovery
+
+The plugin scans the document and identifies all text nodes within the selected frames or pages. For each node it collects:
+
+Original text content
+
+Frame information
+
+Node identifiers
+
+Position within the design
+
+Associated design metadata
+
+4.  Variable creation and binding
+
+For every identified text node:
+
+A Figma variable is automatically created.
+
+The variable is bound to the corresponding text layer.
+
+The original text value is assigned as the variable's default.
+
+This allows translated text to be inserted dynamically without manually editing each text layer.
+
+5.  Metadata generation
+
+After processing all text nodes, the plugin generates a metadata JSON collection containing the Figma file key, frame ID, node ID, variable name, original source text, page information, and localization mapping details. This JSON serves as the translation blueprint for future image generation.
+
+6.  Metadata storage
+
+The metadata JSON is uploaded to centralized storage, which acts as the source of truth for text-extraction information, variable mappings, frame references, and translation assets. The storage service confirms successful persistence.
+
+7.  Export completion
+
+Once the metadata is stored, the plugin notifies the user that the export completed successfully. The Figma file is now fully prepared for localization.
+
+8.  Backend metadata retrieval
+
+When localization is later requested, the backend requests the metadata JSON from storage, receives it, and uses it to identify source text, variable mappings, frame references, and translation targets.
+
+9.  Translation preparation
+
+Using the retrieved metadata, the localization system can translate source text into target languages, populate translated values into Figma variables, regenerate localized image frames, export translated images, and store the translated assets for future reuse.
+
+7. Figma Metadata Structure
+
+The metadata JSON exported by the Figma plugin captures the details about every screen present in figma workspace along with variable collections associated with its text node.
+
+Representative example
+
+The following illustrative snippet shows how a single screen's metadata represented and stored in chromaDB. This is JSON representation of single screen, Figma plugin exports a collection of below JSON objects and this data is consumed by service API to populate chromaDB.
+
+{
+
+            "figma_file_key": "wxtmgXcQDyghyrlYepFU6f",
+
+            "frame_name": "Page 1",
+
+            "node_id": "255:9",
+
+            "node_name": "Login",
+
+            "absolute_bounding_box": { "x": -26, "y": -1365, "width": 1920, "height": 1045 },
+
+            "scale": 1,
+
+            "format": "png",
+
+            "source": "figma",
+
+            "Localization": {
+
+            "collectionId": "VariableCollectionId:2002:18",
+
+            "modes": {
+
+                "2002:0": "DE"
+
+            },
+
+            "variables": [
+
+                {
+
+                "variableId": "VariableID:2002:29",
+
+                "name": "diagnostic_suite",
+
+                "values": {
+
+                    "DE": "Diagnostic Suite"
+
+                }
+
+                },
+
+                {
+
+                "variableId": "VariableID:2002:30",
+
+                "name": "username",
+
+                "values": {
+
+                    "DE": "Username*"
+
+                }
+
+                }
+
+            ]
+
+            }
+
+        }
+
+8. System Flow Diagram

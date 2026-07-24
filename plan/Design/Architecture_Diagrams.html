@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture Diagrams — AI Localization Platform</title>
+  <style>
+    body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 2rem auto; max-width: 1200px; padding: 0 1rem; color: #0f172a; }
+    h1 { border-bottom: 2px solid #e2e8f0; padding-bottom: .5rem; }
+    h2 { margin-top: 2.5rem; color: #1e293b; }
+    .diagram { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin: 1rem 0; background: #fff; overflow-x: auto; }
+    .note { color: #64748b; font-size: .9rem; }
+    nav a { display: inline-block; margin: .2rem .6rem .2rem 0; color: #2563eb; text-decoration: none; font-size: .9rem; }
+    nav { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <h1>🏛️ Architecture Diagrams — AI Localization Platform</h1>
+  <p class="note">Standalone render (Mermaid via CDN). Aligned to LOCKED_Design_v1.0.md.</p>
+
+  <nav>
+    <strong>Architecture views:</strong><br/>
+    <a href="#d1">1. System Context</a>
+    <a href="#d2">2. Layered Architecture</a>
+    <a href="#d3">3. Deployment</a>
+    <a href="#d4">4. Pipeline Stages</a>
+    <a href="#d5">5. State Machine</a>
+    <a href="#d7">7. Image Sub-Pipeline</a>
+    <a href="#d8">8. Video Flow</a>
+    <a href="#d9">9. UI Resource Flow</a>
+    <a href="#d12">12. Data Model (ER)</a>
+    <a href="#d13">13. Project/Artifact Model</a>
+    <br/><strong>Key sequences:</strong><br/>
+    <a href="#d6">6. IFU Sequence</a>
+    <a href="#d6b">6.1 IFU Join / Barrier</a>
+    <a href="#d10">10. Real-time Updates</a>
+    <a href="#d11">11. Lokalise Webhook+Polling</a>
+    <a href="#d14">14. Project Creation</a>
+    <a href="#d15">15. Pipeline Execution</a>
+    <a href="#d16">16. Image Localization</a>
+    <a href="#d17">17. Lokalise Completion</a>
+    <a href="#d18">18. Failure & Recovery</a>
+  </nav>
+
+  <h2 id="d1">1. System Context</h2>
+  <div class="diagram"><pre class="mermaid">
+graph TB
+    subgraph Users
+        LM[Localization Manager&lt;br/&gt;CitiusTech]
+        AD[Admin&lt;br/&gt;CitiusTech]
+        VW[Viewer&lt;br/&gt;DeepHealth]
+    end
+
+    APP[["AI Localization Platform&lt;br/&gt;(Python / FastAPI monolith)"]]
+
+    subgraph "External Services"
+        LOK[Lokalise Enterprise&lt;br/&gt;Translation]
+        FIG[Figma&lt;br/&gt;UI images]
+        SSO[DeepHealth SSO&lt;br/&gt;OAuth2/SAML]
+        WHS[OpenAI Whisper&lt;br/&gt;STT - video]
+        TTS[Google Cloud TTS&lt;br/&gt;video]
+    end
+
+    LM --&gt;|Create projects, add artifacts, download| APP
+    AD --&gt;|Configure, manage| APP
+    VW --&gt;|Monitor status| APP
+
+    APP &lt;--&gt;|Upload text / webhooks / poll| LOK
+    APP &lt;--&gt;|Frame text, render PNG| FIG
+    APP --&gt;|Authenticate| SSO
+    APP --&gt;|Transcribe audio| WHS
+    APP --&gt;|Synthesize audio| TTS
+  </pre></div>
+
+  <h2 id="d2">2. High-Level Layered Architecture</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart TB
+    subgraph L0["① Client Layer"]
+        direction LR
+        UI["Web UI (Browser)&lt;br/&gt;Angular/React SPA"]
+        EXTIN["Lokalise&lt;br/&gt;(inbound webhooks)"]
+    end
+    subgraph L1["② API / Presentation Layer — FastAPI"]
+        direction LR
+        REST["REST API&lt;br/&gt;/api/v1"]
+        WSK["WebSocket&lt;br/&gt;live progress"]
+        WHK["Webhook Receivers&lt;br/&gt;Lokalise"]
+        AUTH["Auth&lt;br/&gt;SSO / JWT / RBAC"]
+    end
+    subgraph L2["③ Orchestration Layer — Pipeline Framework"]
+        direction LR
+        EXEC["Pipeline Executor&lt;br/&gt;Process→…→Download"]
+        SM["State Machine"]
+        SAGA["Saga / Compensation"]
+        CKPT["Checkpointing"]
+        FACT["Strategy Factory"]
+    end
+    subgraph L3["④ Strategy Layer"]
+        direction LR
+        SIFU["IFU Strategy"]
+        SVID["Video Strategy"]
+        SUIR["UI Resource Strategy"]
+    end
+    subgraph L4["⑤ Domain / Shared Services"]
+        direction LR
+        DOC["Document Processor"]
+        IMGP["Image Localization&lt;br/&gt;Sub-Pipeline"]
+        ASM["Assembly Engine"]
+        AIR["AI Reviewer"]
+        NOT["Notification"]
+        STO["Storage Service"]
+        subgraph L4V["Video-only"]
+            direction LR
+            WHV["Whisper Svc"]
+            TTV["TTS Svc"]
+            FFM["FFmpeg Assembler"]
+        end
+    end
+    subgraph L5["⑥ Integration Layer — Circuit Breakers"]
+        direction LR
+        LOKS["Lokalise Client"]
+        FIGS["Figma Client"]
+        CHS["ChromaDB Client"]
+        WHS["Whisper API"]
+        TTS["TTS API"]
+        SSO["SSO Provider"]
+    end
+    subgraph LA["⑦ Async Processing"]
+        direction LR
+        CW["Celery Worker&lt;br/&gt;concurrency=3"]
+        CB["Celery Beat&lt;br/&gt;scheduler"]
+    end
+    subgraph L6["⑧ Data Layer"]
+        direction LR
+        PG[("PostgreSQL&lt;br/&gt;projects, artifacts,&lt;br/&gt;stages, audit")]
+        CD[("ChromaDB&lt;br/&gt;image vectors")]
+        RD[("Redis&lt;br/&gt;broker, cache,&lt;br/&gt;pub/sub")]
+        S3[("S3 / GCS&lt;br/&gt;files & images")]
+    end
+    subgraph EXT["External Systems"]
+        direction LR
+        ELOK["Lokalise Enterprise"]
+        EFIG["Figma"]
+        EWHS["OpenAI Whisper"]
+        ETTS["Google Cloud TTS"]
+        ESSO["DeepHealth SSO"]
+    end
+
+    UI --&gt; REST & WSK
+    EXTIN --&gt; WHK
+    REST --&gt; AUTH --&gt; EXEC
+    REST --&gt;|enqueue| RD --&gt; CW --&gt; EXEC
+    CB --&gt; RD
+    WHK --&gt; RD
+    EXEC --&gt; SM & SAGA & CKPT
+    EXEC --&gt; FACT --&gt; SIFU & SVID & SUIR
+    SIFU --&gt; DOC & IMGP & ASM & AIR
+    SVID --&gt; DOC & IMGP & AIR & L4V
+    SUIR --&gt; AIR & STO
+    SIFU & SVID & SUIR --&gt; NOT & STO
+    IMGP --&gt; FIGS & CHS & LOKS
+    DOC & ASM & AIR & NOT & STO --&gt; LOKS
+    L4V --&gt; WHS & TTS
+    AUTH --&gt; SSO
+    EXEC --&gt;|publish events| RD --&gt;|pub/sub| WSK
+    LOKS --&gt; ELOK
+    FIGS --&gt; EFIG
+    CHS --&gt; CD
+    WHS --&gt; EWHS
+    TTS --&gt; ETTS
+    SSO --&gt; ESSO
+    EXEC -.-&gt; PG
+    LOKS -.-&gt; PG
+    STO -.-&gt; S3
+  </pre></div>
+
+  <h2 id="d3">3. Deployment (Docker Compose)</h2>
+  <div class="diagram"><pre class="mermaid">
+graph TB
+    subgraph "Single Host (Docker Compose)"
+        api[api&lt;br/&gt;uvicorn FastAPI :8000]
+        worker[celery_worker&lt;br/&gt;concurrency=3]
+        beat[celery_beat]
+        flower[flower :5555&lt;br/&gt;monitoring]
+        redis[(redis :6379)]
+        db[(postgres :5432)]
+        chroma[(chromadb :8001)]
+    end
+    api --&gt; redis
+    api --&gt; db
+    api --&gt; chroma
+    worker --&gt; redis
+    worker --&gt; db
+    worker --&gt; chroma
+    beat --&gt; redis
+    flower --&gt; redis
+    ext[[S3 / GCS&lt;br/&gt;object storage]]
+    api --&gt; ext
+    worker --&gt; ext
+  </pre></div>
+
+  <h2 id="d4">4. Universal Pipeline Stages</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+    A[Process /&lt;br/&gt;Extract] --&gt; B[Orchestrate]
+    B --&gt; C[Assemble]
+    C --&gt; D[Review]
+    D --&gt; E[Sign-off]
+    E --&gt; F[Download]
+    B -. parallel sub-tasks .-&gt; B
+    D -. AI + human .-&gt; D
+    classDef stage fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+    class A,B,C,D,E,F stage;
+  </pre></div>
+
+  <h2 id="d5">5. Artifact State Machine</h2>
+  <div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; pending
+    pending --&gt; processing
+    processing --&gt; orchestrating
+    orchestrating --&gt; assembling
+    assembling --&gt; reviewing
+    reviewing --&gt; needs_human_review: issues found
+    needs_human_review --&gt; reviewing: fixes applied
+    reviewing --&gt; signoff: passed
+    signoff --&gt; complete: approved
+    signoff --&gt; reviewing: rejected
+    processing --&gt; failed
+    orchestrating --&gt; failed
+    assembling --&gt; failed
+    reviewing --&gt; failed
+    failed --&gt; processing: retry (resume checkpoint)
+    pending --&gt; cancelled
+    processing --&gt; cancelled
+    complete --&gt; [*]
+    cancelled --&gt; [*]
+  </pre></div>
+
+  <h2 id="d6">6. IFU Localization Sequence</h2>
+  <p class="note">The Pipeline Executor runs the six universal stages and delegates each stage to IFUStrategy. The async fan-out/join detail lives in §6.1.</p>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    actor LM as Loc. Manager
+    participant API as FastAPI
+    participant Q as Redis/Celery
+    participant EX as Pipeline Executor
+    participant IFU as IFUStrategy
+    participant DOC as Doc Processor
+    participant IMG as Image Pipeline
+    participant LOK as Lokalise
+    participant ASM as Assembler
+    participant AIR as AI Reviewer
+    participant DB as PostgreSQL
+    participant S3 as Storage
+
+    LM-&gt;&gt;API: POST /projects [product, target lang]
+    LM-&gt;&gt;API: POST /projects/{id}/artifacts [IFU DOCX]
+    API-&gt;&gt;Q: enqueue execute_pipeline(artifact)
+    API--&gt;&gt;LM: 201 artifact pending
+    Q-&gt;&gt;EX: run pipeline
+    EX-&gt;&gt;IFU: select strategy [artifact_type = IFU]
+
+    Note over EX,S3: Stage 1 - process
+    EX-&gt;&gt;IFU: process(artifact)
+    IFU-&gt;&gt;DOC: extract embedded images + positions/hash [no text parsing]
+    DOC-&gt;&gt;S3: store extracted images
+    DOC-&gt;&gt;DB: write image metadata [image_processing]
+    IFU--&gt;&gt;EX: images cataloged [original DOCX kept intact]
+
+    Note over EX,IMG: Stage 2 - orchestrate [fan-out, non-blocking]
+    EX-&gt;&gt;IFU: orchestrate(artifact)
+    IFU-&gt;&gt;DB: create subtasks [document, images = pending]
+    par Document branch
+        IFU-&gt;&gt;LOK: upload ORIGINAL DOCX [doc upload API]
+    and Image branch
+        IFU-&gt;&gt;IMG: start image sub-pipeline
+    end
+    IFU--&gt;&gt;EX: fan-out done, worker suspends
+    Note over LOK: translate + human review inside Lokalise [async]
+    Note over EX,ASM: async wait + join barrier - see 6.1
+    Note over LOK,IMG: both branches complete, barrier trips, resume
+
+    Note over EX,S3: Stage 3 - localize [assemble]
+    EX-&gt;&gt;IFU: localize(artifact)
+    IFU-&gt;&gt;ASM: assemble translated DOCX + re-inject localized images [by position/hash]
+    ASM-&gt;&gt;S3: store final IFU
+    IFU--&gt;&gt;EX: assembled artifact ready
+
+    Note over EX,AIR: Stage 4 - review
+    EX-&gt;&gt;IFU: review(artifact)
+    IFU-&gt;&gt;AIR: AI review assembled doc [text, images, layout]
+    AIR-&gt;&gt;DB: write findings [review_findings]
+    alt issues found
+        AIR--&gt;&gt;LM: needs human review [WebSocket]
+        LM-&gt;&gt;API: resolve findings
+    end
+    IFU--&gt;&gt;EX: review passed
+
+    Note over EX,LM: Stage 5 - signoff [human approval]
+    EX-&gt;&gt;IFU: signoff(artifact)
+    IFU--&gt;&gt;LM: request approval [WebSocket]
+    LM-&gt;&gt;API: approve
+    API-&gt;&gt;DB: record approval [approvals]
+
+    Note over EX,S3: Stage 6 - download
+    EX-&gt;&gt;IFU: download(artifact)
+    IFU-&gt;&gt;DB: status = complete
+    EX-&gt;&gt;API: publish download_ready
+    API--&gt;&gt;LM: WebSocket download_ready
+    LM-&gt;&gt;API: GET /artifacts/{id}/download
+    API-&gt;&gt;S3: presigned URL
+    S3--&gt;&gt;LM: localized IFU.docx
+  </pre></div>
+
+  <h2 id="d6b">6.1 IFU Parallel-Branch Join / Barrier</h2>
+  <p class="note">Fan-out of the two async branches and the DB-backed barrier that triggers assembly + review exactly once when both complete.</p>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant IFU as IFUStrategy
+    participant SUB as Subtasks Barrier DB
+    participant IMG as Image Pipeline
+    participant LOK as Lokalise
+    participant API as FastAPI Webhook
+    participant BEAT as Celery Beat
+    participant ASM as Assembler
+    participant REV as AI Reviewer
+    participant W as Worker Pipeline
+
+    Note over IFU,SUB: Orchestrate = fan-out
+    IFU-&gt;&gt;SUB: create subtasks [document, images] = pending
+    par Document branch
+        IFU-&gt;&gt;LOK: upload ORIGINAL DOCX [doc upload API]
+    and Image branch
+        IFU-&gt;&gt;IMG: localize images [sub-pipeline]
+    end
+
+    Note over LOK: text extract + translate + human review [async]
+
+    alt Webhook path
+        LOK-&gt;&gt;API: translation complete [webhook]
+    else Polling fallback
+        BEAT-&gt;&gt;LOK: poll status every 15 min
+        LOK--&gt;&gt;BEAT: complete
+    end
+    API-&gt;&gt;SUB: mark document = complete + barrier check
+    Note right of SUB: atomic lock + idempotency
+
+    IMG-&gt;&gt;IMG: all images done + cached
+    IMG-&gt;&gt;SUB: mark images = complete + barrier check
+
+    Note over SUB: last branch trips barrier
+    SUB-&gt;&gt;W: all complete -&gt; enqueue assemble [once]
+
+    W-&gt;&gt;ASM: assemble translated DOCX + replace images
+    ASM--&gt;&gt;W: final IFU stored
+    W-&gt;&gt;REV: review assembled document [images, layout]
+    REV--&gt;&gt;W: findings -&gt; signoff -&gt; download_ready
+  </pre></div>
+
+  <h2 id="d7">7. Image Localization Sub-Pipeline</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+    Start([Image]) --&gt; CLS{Classify}
+    CLS --&gt;|non-UI| MAN[Flag for manual&lt;br/&gt;handling]
+    CLS --&gt;|UI screenshot| MATCH{ChromaDB match&lt;br/&gt;&ge; 90%?}
+    MATCH --&gt;|no| MAN
+    MATCH --&gt;|yes| CACHE{Translated image&lt;br/&gt;in cache?}
+    CACHE --&gt;|hit| REUSE[Reuse cached image]
+    CACHE --&gt;|miss| FT[Get Figma text nodes]
+    FT --&gt; SEND[Send text + image to Lokalise]
+    SEND --&gt; WAIT[Wait for completion]
+    WAIT --&gt; RENDER[Render image from Figma]
+    RENDER --&gt; AIREV{AI review OK?}
+    AIREV --&gt;|issues| FIX[Auto-fix / adjust]
+    FIX --&gt; AIREV
+    AIREV --&gt;|ok| HR{Human review&lt;br/&gt;needed?}
+    HR --&gt;|yes| HUM[Human validates]
+    HR --&gt;|no| STORE
+    HUM --&gt; STORE[Cache translated image]
+    REUSE --&gt; READY([Ready for assembly])
+    STORE --&gt; READY
+    MAN --&gt; READY
+    classDef reuse fill:#e8f5e9,stroke:#2e7d32;
+    class REUSE,CACHE reuse;
+  </pre></div>
+
+  <h2 id="d8">8. Video Localization Flow</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+    V([Video MP4]) --&gt; EX[Process: extract&lt;br/&gt;audio + subtitles + frames]
+    EX --&gt; A1[Audio track]
+    EX --&gt; S1[Subtitle track]
+    EX --&gt; F1[Image frames]
+    subgraph Audio
+        A1 --&gt; STT[Whisper STT]
+        STT --&gt; AL[Lokalise translate]
+        AL --&gt; TTS[Google Cloud TTS]
+    end
+    subgraph Subtitles
+        S1 --&gt; SL[Lokalise translate]
+    end
+    subgraph Images
+        F1 --&gt; IP[Image Loc. Pipeline]
+    end
+    TTS --&gt; MERGE[FFmpeg assemble]
+    SL --&gt; MERGE
+    IP --&gt; MERGE
+    MERGE --&gt; REV[Review AI + human]
+    REV --&gt; DONE([Localized video])
+  </pre></div>
+
+  <h2 id="d9">9. UI Resource Flow</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+    R([Resource file&lt;br/&gt;JSON/XML/YAML/Properties/RESX]) --&gt; P[Parse +&lt;br/&gt;extract strings]
+    P --&gt; L[Send to Lokalise]
+    L --&gt; W[Wait for completion]
+    W --&gt; RC[Reconstruct file&lt;br/&gt;with translations]
+    RC --&gt; REV[Review AI + human]
+    REV --&gt; D([Localized resource file])
+  </pre></div>
+
+  <h2 id="d10">10. Real-time Updates (Event Flow)</h2>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant W as Worker Pipeline
+    participant RD as Redis Pub/Sub
+    participant API as FastAPI WS
+    participant UI as Browser
+
+    UI-&gt;&gt;API: WS connect /ws/{client_id}
+    API-&gt;&gt;RD: subscribe artifact channels
+    loop each stage/subtask
+        W-&gt;&gt;RD: publish {stage_started|progress|completed|failed}
+        RD-&gt;&gt;API: event
+        API-&gt;&gt;UI: push event (progress bar, status)
+    end
+    W-&gt;&gt;RD: publish review_required / download_ready
+    RD-&gt;&gt;API: event
+    API-&gt;&gt;UI: enable Review / Download actions
+  </pre></div>
+
+  <h2 id="d11">11. Lokalise Webhook + Polling</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+    UP[Upload content to Lokalise] --&gt; STORE[(lokalise_tasks: uploaded)]
+    STORE --&gt; WAIT{Completion signal}
+    WH[Webhook received] --&gt;|idempotency check| IDEMP{Already&lt;br/&gt;processed?}
+    IDEMP --&gt;|yes| IGN[Ignore]
+    IDEMP --&gt;|no| PROC[Process completion]
+    BEAT[Celery Beat&lt;br/&gt;every 15 min] --&gt; POLL[Poll pending tasks]
+    POLL --&gt; CHK{Status == completed?}
+    CHK --&gt;|yes| PROC
+    CHK --&gt;|no| SKIP[Leave pending]
+    WAIT -.-&gt; WH
+    WAIT -.-&gt; BEAT
+    PROC --&gt; NEXT[Trigger next stage:&lt;br/&gt;download + assemble]
+  </pre></div>
+
+  <h2 id="d12">12. Data Model (ER)</h2>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+    users ||--o{ products : creates
+    users ||--o{ projects : creates
+    products ||--o{ projects : has
+    products ||--o{ figma_images : has
+    projects ||--o{ project_artifacts : contains
+    project_artifacts ||--o{ artifact_stages : has
+    project_artifacts ||--o{ artifact_subtasks : has
+    project_artifacts ||--o{ image_processing : has
+    project_artifacts ||--o{ lokalise_tasks : has
+    project_artifacts ||--o{ review_findings : has
+    project_artifacts ||--o{ approvals : has
+    artifact_stages ||--o{ artifact_subtasks : groups
+    artifact_subtasks ||--o{ lokalise_tasks : spawns
+    projects {
+        uuid project_id PK
+        uuid product_id FK
+        string target_language
+        string status
+    }
+    project_artifacts {
+        uuid artifact_id PK
+        uuid project_id FK
+        string artifact_type
+        string status
+        int progress_percent
+    }
+    artifact_stages {
+        uuid stage_id PK
+        uuid artifact_id FK
+        string stage_name
+        string status
+    }
+  </pre></div>
+
+  <h2 id="d13">13. Project / Artifact Model</h2>
+  <div class="diagram"><pre class="mermaid">
+graph TD
+    P[Product: Diagnostic Suite]
+    P --&gt; PR1[Project: German IFU&lt;br/&gt;target = de]
+    P --&gt; PR2[Project: French Manual&lt;br/&gt;target = fr]
+    PR1 --&gt; A1[IFU.docx&lt;br/&gt;complete 100%]
+    PR1 --&gt; A2[training.mp4&lt;br/&gt;in_progress 58%]
+    PR1 --&gt; A3[ui-strings.json&lt;br/&gt;pending]
+    PR2 --&gt; A4[IFU.docx&lt;br/&gt;in_progress]
+    PR2 --&gt; A5[user-manual.docx&lt;br/&gt;pending]
+    classDef done fill:#e8f5e9,stroke:#2e7d32;
+    classDef prog fill:#fff8e1,stroke:#f9a825;
+    classDef pend fill:#eceff1,stroke:#607d8b;
+    class A1 done;
+    class A2,A4 prog;
+    class A3,A5 pend;
+  </pre></div>
+
+  <h2 id="d14">14. Project Creation & Artifact Submission</h2>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    actor LM as Loc. Manager
+    participant API as FastAPI REST
+    participant AUTH as Auth SSO/JWT
+    participant DB as PostgreSQL
+    participant S3 as Storage
+    participant Q as Redis broker
+    participant CW as Celery Worker
+
+    LM-&gt;&gt;API: POST /projects {product, targetLanguage}
+    API-&gt;&gt;AUTH: validate token + RBAC
+    AUTH--&gt;&gt;API: ok (localization_manager)
+    API-&gt;&gt;DB: insert project (status=pending)
+    API--&gt;&gt;LM: 201 {projectId}
+    LM-&gt;&gt;API: POST /projects/{id}/artifacts {type}
+    API-&gt;&gt;S3: request presigned upload URL
+    S3--&gt;&gt;API: presigned URL
+    API-&gt;&gt;DB: insert artifact (status=pending)
+    API--&gt;&gt;LM: 201 {artifactId, uploadUrl}
+    LM-&gt;&gt;S3: PUT source file (direct upload)
+    LM-&gt;&gt;API: POST /artifacts/{id}/start
+    API-&gt;&gt;Q: enqueue execute_pipeline(artifactId)
+    API-&gt;&gt;DB: artifact.status=processing
+    API--&gt;&gt;LM: 202 accepted
+    Q-&gt;&gt;CW: deliver task
+    Note over CW: Pipeline begins (see Diagram 15)
+  </pre></div>
+
+  <h2 id="d15">15. Artifact Pipeline Execution (with events)</h2>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant CW as Celery Worker
+    participant PL as Pipeline Executor
+    participant SM as State Machine
+    participant ST as Strategy
+    participant SVC as Domain Services
+    participant DB as PostgreSQL
+    participant RD as Redis Pub/Sub
+    participant WS as WebSocket
+    actor UI as Browser
+
+    CW-&gt;&gt;PL: execute(artifact)
+    loop each stage: Process→Orchestrate→Assemble→Review→Sign-off→Download
+        PL-&gt;&gt;SM: transition(next_stage)
+        SM-&gt;&gt;DB: persist stage status
+        PL-&gt;&gt;RD: publish stage_started
+        RD-&gt;&gt;WS: event
+        WS--&gt;&gt;UI: progress update
+        PL-&gt;&gt;ST: run stage(strategy)
+        ST-&gt;&gt;SVC: do work (may spawn sub-tasks)
+        SVC--&gt;&gt;ST: result
+        PL-&gt;&gt;DB: checkpoint(stage complete)
+        PL-&gt;&gt;RD: publish stage_completed
+        RD-&gt;&gt;WS: event
+        WS--&gt;&gt;UI: progress update
+    end
+    PL-&gt;&gt;DB: artifact.status=complete
+    PL-&gt;&gt;RD: publish download_ready
+    RD-&gt;&gt;WS: event
+    WS--&gt;&gt;UI: enable download
+  </pre></div>
+
+  <h2 id="d16">16. Image Localization (per UI screenshot)</h2>
+  <p class="note">Runs inside the IFU/Video orchestrate stage (the image branch). Each extracted image is processed independently; when all are done the images sub-task completes and feeds the join barrier (§6.1). Reused by both IFU and Video.</p>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant IFU as IFUStrategy
+    participant IMG as Image Sub-Pipeline
+    participant CLS as AI Classifier
+    participant CH as ChromaDB
+    participant CACHE as Translation Cache DB
+    participant FIG as Figma
+    participant LOK as Lokalise
+    participant AI as AI Reviewer
+    actor HR as Human Reviewer
+    participant S3 as Storage
+    participant DB as image_processing DB
+
+    IFU-&gt;&gt;IMG: start image sub-pipeline [extracted images]
+    loop each extracted image
+        IMG-&gt;&gt;CLS: classify [UI vs non-UI]
+        CLS--&gt;&gt;IMG: classification + confidence
+        alt non-UI or low confidence
+            IMG-&gt;&gt;DB: status = manual [requires_manual_translation]
+            Note over IMG,DB: retain original, flag for review
+        else UI screenshot
+            IMG-&gt;&gt;CH: similarity search [per product]
+            alt match ≥ 90%
+                IMG-&gt;&gt;CACHE: lookup [image_hash + target lang]
+                alt cache hit
+                    CACHE--&gt;&gt;IMG: cached translated PNG
+                    IMG-&gt;&gt;DB: status = cached [cache_hit = true]
+                else cache miss
+                    IMG-&gt;&gt;FIG: load metadata + get text nodes
+                    IMG-&gt;&gt;LOK: send source text [+ reference image]
+                    LOK--&gt;&gt;IMG: translated strings [by variable name]
+                    IMG-&gt;&gt;FIG: set target-language mode, render frame
+                    FIG--&gt;&gt;IMG: translated PNG
+                    IMG-&gt;&gt;AI: review rendered image [overflow, cutoff, completeness]
+                    alt issues found
+                        AI--&gt;&gt;HR: request human review
+                        HR--&gt;&gt;IMG: approve / adjust
+                    end
+                    IMG-&gt;&gt;S3: store translated PNG
+                    IMG-&gt;&gt;CACHE: cache [image_hash, target lang, PNG]
+                    IMG-&gt;&gt;DB: status = translated
+                end
+            else match below 90%
+                IMG-&gt;&gt;DB: status = manual [requires_manual_translation]
+                Note over IMG,DB: retain original, flag for review
+            end
+        end
+    end
+    IMG--&gt;&gt;IFU: all images ready, mark images subtask complete
+    Note over IFU: feeds the join barrier - see 6.1
+  </pre></div>
+
+  <h2 id="d17">17. Lokalise Completion (Webhook + Polling fallback)</h2>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant PL as Pipeline
+    participant LOK as Lokalise
+    participant WHK as Webhook Receiver
+    participant RD as Redis idempotency
+    participant BEAT as Celery Beat
+    participant DB as PostgreSQL
+
+    PL-&gt;&gt;LOK: upload content, create task
+    PL-&gt;&gt;DB: lokalise_tasks (status=uploaded)
+    par Primary: webhook
+        LOK--&gt;&gt;WHK: task.completed (signature)
+        WHK-&gt;&gt;WHK: verify signature
+        WHK-&gt;&gt;RD: SETNX idempotency-key
+        alt first time
+            WHK-&gt;&gt;DB: mark task completed
+            WHK-&gt;&gt;PL: resume (download + assemble)
+        else duplicate
+            WHK--&gt;&gt;LOK: 200 (ignored)
+        end
+    and Fallback: polling
+        loop every 15 min
+            BEAT-&gt;&gt;LOK: GET task status
+            LOK--&gt;&gt;BEAT: status
+            alt completed and not processed
+                BEAT-&gt;&gt;RD: SETNX idempotency-key
+                BEAT-&gt;&gt;DB: mark task completed
+                BEAT-&gt;&gt;PL: resume (download + assemble)
+            end
+        end
+    end
+  </pre></div>
+
+  <h2 id="d18">18. Failure, Retry & Checkpoint Recovery</h2>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+    participant CW as Celery Worker
+    participant PL as Pipeline
+    participant CB as Circuit Breaker
+    participant EXT as External Service
+    participant SAGA as Saga
+    participant DB as PostgreSQL
+
+    CW-&gt;&gt;PL: execute(artifact) [resume from checkpoint]
+    PL-&gt;&gt;DB: read last successful stage
+    PL-&gt;&gt;CB: call external
+    CB-&gt;&gt;EXT: request
+    EXT--xCB: failure / timeout
+    CB-&gt;&gt;CB: retry w/ backoff
+    alt retries exhausted
+        CB--&gt;&gt;PL: open circuit (fail fast)
+        PL-&gt;&gt;SAGA: compensate partial work
+        SAGA-&gt;&gt;DB: rollback side-effects
+        PL-&gt;&gt;DB: artifact.status=failed (checkpoint kept)
+        Note over CW,DB: Manual/auto retry later resumes&lt;br/&gt;from last checkpoint, not from scratch
+    else recovered
+        CB--&gt;&gt;PL: success
+        PL-&gt;&gt;DB: checkpoint(stage complete)
+    end
+  </pre></div>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+</body>
+</html>

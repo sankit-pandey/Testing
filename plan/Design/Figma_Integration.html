@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Figma Integration — Diagrams</title>
+  <style>
+    body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 2rem auto; max-width: 1100px; padding: 0 1rem; color: #0f172a; }
+    h1 { border-bottom: 2px solid #e2e8f0; padding-bottom: .5rem; }
+    h2 { margin-top: 2.5rem; color: #1e293b; }
+    .diagram { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin: 1rem 0; background: #fff; overflow-x: auto; }
+    .note { color: #64748b; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <h1>🎨 Figma Integration — Diagrams</h1>
+  <p class="note">Standalone render (Mermaid via CDN). If a diagram is invalid, Mermaid prints the exact error here instead of a blank box.</p>
+
+  <h2>2. Two Phases: Design-time vs Runtime</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+    subgraph "Design-time - one-time per Figma workspace"
+        A[Prepare Figma frames] --> B[Run Build and Export Metadata plugin]
+        B --> C[Export metadata JSON]
+        C --> D[Store metadata and populate ChromaDB]
+    end
+    subgraph "Runtime - per localization request"
+        E[Match extracted image in ChromaDB] --> F[Load Figma metadata]
+        F --> G[Translate text and set Figma variables]
+        G --> H[Render and export PNG]
+    end
+    D -->|enables| E
+    </pre>
+  </div>
+
+  <h2>3. Design-time Preparation Workflow (Plugin)</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+sequenceDiagram
+    actor D as Designer
+    participant FG as Figma Workspace
+    participant PL as Build and Export Plugin
+    participant ST as Central Storage
+    participant CH as ChromaDB
+    participant API as Figma Ingestion API
+
+    D->>FG: Open IFU workspace
+    D->>FG: Clone workspace to preserve original
+    D->>PL: Run plugin on cloned workspace
+    PL->>FG: Scan text nodes in selected frames
+    loop each text node
+        PL->>FG: Create variable and bind to text layer
+        PL->>FG: Set original text as default value
+    end
+    PL->>PL: Build metadata JSON per screen
+    PL->>ST: Upload metadata JSON as source of truth
+    ST-->>PL: Persistence confirmed
+    PL-->>D: Export completed
+    API->>ST: Read metadata JSON
+    API->>CH: Populate ChromaDB with embeddings and metadata
+    </pre>
+  </div>
+
+  <h2>5. Variables &amp; Modes (per-language mechanism)</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+    subgraph "Variable Collection"
+        M1["mode 0 equals DE - source"]
+        M2["mode 1 equals HU - added at runtime"]
+        V1["var username"]
+        V2["var diagnostic_suite"]
+    end
+    V1 --> M1
+    V1 --> M2
+    V2 --> M1
+    V2 --> M2
+    </pre>
+  </div>
+
+  <h2>6. Runtime Image Localization</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+sequenceDiagram
+    participant IMG as Image Sub-Pipeline
+    participant CH as ChromaDB
+    participant ST as Metadata Storage
+    participant CACHE as Translation Cache
+    participant LOK as Lokalise
+    participant FG as Figma API
+    participant S3 as Storage
+
+    IMG->>CH: similarity search for extracted image
+    CH-->>IMG: match at or above 90 percent with metadata ref
+    IMG->>ST: load Figma metadata JSON
+    IMG->>CACHE: lookup by image_hash and targetLang
+    alt cache hit
+        CACHE-->>IMG: reuse translated PNG
+    else cache miss
+        IMG->>LOK: send source text from variable values
+        LOK-->>IMG: translated strings by variable name
+        IMG->>FG: set target-language mode values
+        IMG->>FG: render frame with bbox scale and format
+        FG-->>IMG: translated PNG
+        IMG->>S3: store PNG
+        IMG->>CACHE: cache image_hash targetLang PNG
+    end
+    IMG-->>IMG: ready for assembly
+    </pre>
+  </div>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+</body>
+</html>

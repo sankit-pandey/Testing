@@ -1,0 +1,172 @@
+
+================================================================================
+Page 1
+================================================================================
+1
+DeepHealth: Localization 
+Solution Discussion
+1HMT
+May, 2026| www.citiustech.com
+================================================================================
+Page 2
+================================================================================
+2Our Understanding of Requirements
+DeepHealthrequires an end-to-end managed localization service that acceleratesglobal healthcare product 
+launches  Objective
+•DeepHealthrequires a managed, end-to-end localization capability to accelerate global healthcare product launches while meeting clinical,
+regulatory, and linguistic standards
+•The solution must support localization of complex artifacts such as IFUs, user guides, and training videos that contain mixedcontent (text, 
+images, and media) and are not fully supported by standard translation tools
+•The solution must enable consistent and coordinated processing of all content types within a single localization workflow, ensuring no loss of 
+context or structure
+•The solution must enforce mandatory human review and approval for all regulatory-critical content to ensure clinical accuracy, regulatory 
+compliance, and language quality
+•The solution must deliver fully assembled, validated localized artifacts, preserving original layout, structure, and intent, ready for QA and 
+regulatory validation
+•The solution must be operated as a managed service, providing the customer with a single point of accountability for quality,timelines, and 
+complianceOur Understanding of DeepHealthRequirements
+
+================================================================================
+Page 3
+================================================================================
+3DICOM Ingestion PlatformProposed Localization Workflow
+CitiusTech Managed LocalizationService
+DeepHealth
+DeepHealth
+Product Repo
+DeepHealth
+Product Repo1. CitiusTech Service Person starts the process from the app
+2. Localization engine orchestrates the workflow as per 
+document type
+3. CitiusTech will monitor the process, coordinate with 
+Lokalisévendor, and review translated artifacts
+4. After review, CitiusTech pushes artifacts back to 
+DeepHealthfor verification and validationLokaliseRequest CitiusTech to localize a 
+product for GermanyStep1: DeepHealthraises request
+Step 2: Pull artifacts to be localised
+Resource files (json, xml)
+User guide, IFU (docx, pdf)
+Training video (mpeg)
+Step 3: Monitoring & Review
+Step 4: Results back to repo ready 
+for QA Validation(GitLab)TextNotify Translation Status
+Seats/Users
+Localization Manager:  
+CitiusTech
+Language Service 
+Provider: DeepHealth
+Users
+Localization Manager:  CitiusTech
+Clinical SME : CitiusTechLocalization Orchestration Engine
+================================================================================
+Page 4
+================================================================================
+4DICOM Ingestion PlatformProposed Architecture Diagram
+DICOM Ingestion PlatformRaise localization requests
+Select product / market / language
+Monitor status & SLA
+Audit & ReportingWorkflow 
+Orchestration 
+LayerAssembly, Validation & Delivery
+Review & 
+Validation 
+Agents
+Text 
+LocalizerImage 
+LocalizerSpeech 
+to TextText-to-
+SpeechVideo 
+Extractor & 
+AssemblerText 
+Localization 
+PipelineIFU / 
+Document 
+Localization 
+PipelineVideo 
+Localization 
+PipelineLocalization Web App UICitiusTech Managed Localization Service
+Localization Web App Backend
+GitLab FigmaDocument 
+StoresVideo 
+AssetsLokalise FigmaOpenAI 
+WhisperGoogle 
+Cloud 
+TTS
+DeepHealthSystemsCitiusTech 
+Service 
+UsersStarts Localization
+Process
+Localization ToolsFFmpegpHash
+(Perceptual Hash)
+(Maps document & video visuals to Figma 
+screen locations)
+Image Hash
+Figma Mapping 
+Database
+================================================================================
+Page 5
+================================================================================
+5Assumptions and Dependencies
+Product & Scope
+Localization is release-critical and planned as part of the product release lifecycle
+Initial scope includes UI resource files, IFU/Word documents, and training videos; advanced content types may be added later
+Video localization covers audio narration, subtitles, and design-based visuals, not advanced video editing.
+Operating Model
+The solution is delivered as a CitiusTech-operated managed service
+Customers do not self-serve the system; all workflows are initiated and monitored by CitiusTech teams via the web application
+Lokaliseacts as the translation and human review backend; CitiusTech owns orchestration, assembly, and delivery
+Technology & Integration
+Lokaliseis approved by the client for enterprise translation and human review workflows
+IFU and video images are assumed to originate from design sources such as Figma, enabling deterministic text extraction and re-rendering without OCR
+Video files are accessible in standard formats (e.g., MP4) compatible with Ffmpeg
+Speech-to-text and text-to-speech services are available for the required target languages
+Review & Compliance
+Human review and approval are mandatory for all regulatory-critical artifacts
+AI is used only to assist and accelerate review (e.g., completeness, consistency, anomaly detection), not for final approval
+Final validation and sign-off remain the responsibility of trained reviewers
+Access & Dependencies
+Timely access is provided to (Product repositories, Design assets (Figma), Video assets)
+Required credentials and approvals (Lokalise, Figma, cloud environments) are available early in the project
+Regulatory rules and country-specific requirements remain stable during a release cycle
+Deployment Model
+The Localization Web Application and backend services will be deployed within the customer’s environment (e.g., customer-managedcloud or approved 
+hosting environment)
+CitiusTech will deploy, configure, and operate the solution as a managed service, while respecting the customer’s security, compliance, and IT policies
+================================================================================
+Page 6
+================================================================================
+6Next Steps
+Formal Approval & Scope Confirmation
+Obtain formal approval to proceed with the proposed scope and delivery timeline
+Confirm in-scope vs out-of-scope items (text, IFU, video; no advanced customization)
+Align on Phase-1 MVP scope for the first 2 months
+Commercial & Contractual Finalization
+Finalize engagement model (managed service)
+Confirm pricing and billing cadence
+Sign required agreements (SOW, NDA, vendor agreements where applicable)
+Deployment & Environment Readiness
+Confirm deployment model (customer environment)
+Identify target environment (cloud, region, account)
+Provision required infrastructure and access (Web app runtime, Backend services, Network access for external integrations)
+Tooling & Integration Access
+Set up and approve access for Lokalise(projects, languages, reviewers)
+Figma (design files, APIs)Speech-to-Text / Text-to-Speech services
+Validate security and outbound connectivity requirements
+Project Kickoff & Execution Planning
+Conduct formal kickoff with all stakeholders and align on milestones, review cadence, and escalation paths
+Finalize(Ownership model, Communication plan, Reporting cadence)
+Content & Data Readiness
+Identify initial products and artifacts for localization
+Confirm availability of (Resource files, IFU documents, Video assets, Design sources (Figma))
+Establish content handoff and versioning process
+================================================================================
+Page 7
+================================================================================
+Thank You
+CitiusTech-ShapingHealthcarePossibilities.
+CitiusTech is a global IT services, consulting, and business solutions enterprise 100% focused on the healthcare and life sciences
+industry. We enable 140+ enterprises to build a human-first ecosystem that is efficient, effective, and equitable with deep domain
+expertiseandnext-gentechnology.
+With over 7,700 healthcare technology professionals worldwide, CitiusTech powers healthcare digital innovation, business
+transformation,andindustry-wideconvergencethroughnext-generationtechnologies,solutions,andproducts.
+www.citiustech.com
