@@ -21,7 +21,7 @@ from app.services.figma_service import FigmaService
 
 
 def ingest_figma_metadata(
-    db: Session, tenant_id: uuid.UUID, product_id: uuid.UUID, metadata_json: dict[str, Any]
+    db: Session, product_id: uuid.UUID, metadata_json: dict[str, Any]
 ) -> FigmaImage:
     """Ingest one frame's metadata (Figma_Integration §4 JSON structure)."""
     figma_file_key = metadata_json["figma_file_key"]
@@ -32,12 +32,11 @@ def ingest_figma_metadata(
     scale = metadata_json.get("scale", 1)
     fmt = metadata_json.get("format", "png")
 
-    figma = FigmaService(tenant_id=tenant_id)
+    figma = FigmaService()
     image_bytes = figma.export_frame(figma_file_key, frame_id, scale=scale, fmt=fmt)
     image_hash = hashlib.sha256(image_bytes).hexdigest()
 
     figma_image = FigmaImage(
-        tenant_id=tenant_id,
         product_id=product_id,
         figma_file_key=figma_file_key,
         figma_frame_id=frame_id,

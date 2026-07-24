@@ -67,27 +67,3 @@ def require_roles(*allowed: Role):
 def require_any_role(current_user: User = Depends(get_current_user)) -> User:
     """Any authenticated, active user (including `viewer`)."""
     return current_user
-
-
-async def require_superuser(current_user: User = Depends(get_current_user)) -> User:
-    """Platform-level superuser only — tenant management (multi-tenancy
-    extension). Orthogonal to `role`: a superuser may or may not also hold
-    `admin` within a specific tenant.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Requires platform superuser privileges"
-        )
-    return current_user
-
-
-def require_tenant_id(current_user: User = Depends(get_current_user)) -> uuid.UUID:
-    """The current user's tenant — raises if they have none (superusers with
-    no home tenant must act through tenant-scoped impersonation, not this
-    dependency, which is used by all tenant-data endpoints).
-    """
-    if current_user.tenant_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User has no associated tenant"
-        )
-    return current_user.tenant_id

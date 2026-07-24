@@ -77,7 +77,7 @@ class UIResourceStrategy(BaseStrategy):
             for path, text in strings.items()
         ]
 
-        lokalise = LokaliseService(tenant_id=artifact.project.product.tenant_id)
+        lokalise = LokaliseService()
         source_language = (artifact.project.metadata_ or {}).get("source_language", "en")
         result = lokalise.upload_content(items, source_language=source_language) if items else {}
         external_id = result.get("keys", [{}])[0].get("task_id") if result.get("keys") else None
@@ -185,7 +185,7 @@ def on_ui_strings_ready(db: Session, lokalise_task: LokaliseTask) -> None:
     once the batched `ui_strings` Lokalise task completes.
     """
     artifact = db.get(ProjectArtifact, lokalise_task.artifact_id)
-    lokalise = LokaliseService(tenant_id=artifact.project.product.tenant_id)
+    lokalise = LokaliseService()
     bundle_url = lokalise.download_translations(lokalise_task.target_language)
     flat = fetch_translation_bundle(bundle_url)
 

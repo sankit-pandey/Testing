@@ -1,9 +1,5 @@
 """Business logic for `projects` — one project per product per single target
 language (`LOCKED_Design_v1.0.md` §9). Story 1.1.
-
-`projects` has no direct `tenant_id` column — it is scoped transitively via
-`product_id -> products.tenant_id` (a join), since a project always belongs
-to exactly one product and a product always belongs to exactly one tenant.
 """
 import uuid
 
@@ -13,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.artifacts import ProjectArtifact
-from app.models.products import Product
 from app.models.projects import Project
 from app.schemas.project import ProjectCreate
 
@@ -22,17 +17,7 @@ class DuplicateProjectError(Exception):
     """Raised when an active project already exists for (product_id, target_language)."""
 
 
-class ProductNotFoundError(Exception):
-    """Raised when `product_id` doesn't exist or belongs to a different tenant."""
-
-
-async def create_project(
-    db: AsyncSession, body: ProjectCreate, created_by: uuid.UUID, tenant_id: uuid.UUID
-) -> Project:
-    product = await db.get(Product, body.product_id)
-    if product is None or product.tenant_id != tenant_id:
-        raise ProductNotFoundError(f"Product {body.product_id} not found")
-
+async def create_project(db: AsyncSession, body: ProjectCreate, created_by: uuid.UUID) -> Project:
     metadata: dict = {}
     if body.source_language:
         metadata["source_language"] = body.source_language
@@ -57,22 +42,14 @@ async def create_project(
     return project
 
 
-async def get_project(db: AsyncSession, project_id: uuid.UUID, tenant_id: uuid.UUID) -> Project | None:
-    query = (
-        select(Project)
-        .join(Product, Product.product_id == Project.product_id)
-        .where(Project.project_id == project_id, Product.tenant_id == tenant_id)
-    )
-    return (await db.execute(query)).scalar_one_or_none()
+async def get_project(db: AsyncSession, project_id: uuid.UUID) -> Project | None:
+    return await db.get(Project, project_id)
 
 
-async def get_project_with_artifacts(
-    db: AsyncSession, project_id: uuid.UUID, tenant_id: uuid.UUID
-) -> Project | None:
+async def get_project_with_artifacts(db: AsyncSession, project_id: uuid.UUID) -> Project | None:
     query = (
         select(Project)
-        .join(Product, Product.product_id == Project.product_id)
-        .where(Project.project_id == project_id, Product.tenant_id == tenant_id)
+        .where(Project.project_id == project_id)
         .options(selectinload(Project.artifacts))
     )
     return (await db.execute(query)).scalar_one_or_none()
@@ -81,21 +58,13 @@ async def get_project_with_artifacts(
 async def list_projects(
     db: AsyncSession,
     *,
-    tenant_id: uuid.UUID,
     status: str | None,
     product_id: uuid.UUID | None,
     page: int,
     limit: int,
 ) -> tuple[list[Project], int]:
-    query = select(Project).join(Product, Product.product_id == Project.product_id).where(
-        Product.tenant_id == tenant_id
-    )
-    count_query = (
-        select(func.count())
-        .select_from(Project)
-        .join(Product, Product.product_id == Project.product_id)
-        .where(Product.tenant_id == tenant_id)
-    )
+    query = select(Project)
+    count_query = select(func.count()).select_from(Project)
     if status is not None:
         query = query.where(Project.status == status)
         count_query = count_query.where(Project.status == status)

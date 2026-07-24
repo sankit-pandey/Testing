@@ -20,16 +20,9 @@ async def record_audit_log(
     ip_address: str | None = None,
     user_agent: str | None = None,
     changes: dict[str, Any] | None = None,
-    tenant_id: uuid.UUID | None = None,
 ) -> AuditLog:
-    """Append an immutable audit record. Never update or delete audit rows.
-
-    `tenant_id` (multi-tenancy extension) is `None` for platform-level
-    actions (e.g. a superuser creating a tenant); tenant-scoped callers
-    should pass `current_user.tenant_id`.
-    """
+    """Append an immutable audit record. Never update or delete audit rows."""
     log = AuditLog(
-        tenant_id=tenant_id,
         user_id=user_id,
         action=action,
         entity_type=entity_type,

@@ -11,7 +11,6 @@ from app.api.v1.endpoints import (
     projects,
     reviews,
     storage,
-    tenants,
     webhooks,
     websocket,
 )
@@ -19,7 +18,6 @@ from app.api.v1.endpoints import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
-api_router.include_router(tenants.router)
 api_router.include_router(products.router)
 api_router.include_router(projects.router)
 api_router.include_router(artifacts.router)

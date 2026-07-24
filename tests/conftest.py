@@ -66,20 +66,6 @@ def new_uuid() -> uuid.UUID:
     return uuid.uuid4()
 
 
-@pytest.fixture()
-def tenant_id(db_session) -> uuid.UUID:
-    """A committed `Tenant` row for tests that need one (multi-tenancy
-    extension — `products`/`figma_images`/`translation_cache` all require
-    a valid `tenant_id`).
-    """
-    from app.models.tenants import Tenant
-
-    tenant = Tenant(name="Test Tenant", slug=f"test-{uuid.uuid4().hex[:8]}")
-    db_session.add(tenant)
-    db_session.commit()
-    return tenant.tenant_id
-
-
 @pytest_asyncio.fixture()
 async def async_db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """Async session against the same physical test database as `db_session`
@@ -94,14 +80,3 @@ async def async_db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     with db_engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
-
-
-@pytest_asyncio.fixture()
-async def async_tenant_id(async_db_session) -> uuid.UUID:
-    """Async-session counterpart of `tenant_id`, for API tests."""
-    from app.models.tenants import Tenant
-
-    tenant = Tenant(name="Test Tenant", slug=f"test-{uuid.uuid4().hex[:8]}")
-    async_db_session.add(tenant)
-    await async_db_session.commit()
-    return tenant.tenant_id

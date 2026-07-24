@@ -11,8 +11,8 @@ from app.pipeline.executor import Pipeline
 from app.pipeline.strategy import NoOpStrategy
 
 
-def _make_artifact(db_session, tenant_id: uuid.UUID) -> ProjectArtifact:
-    product = Product(tenant_id=tenant_id, product_name="Test Product")
+def _make_artifact(db_session) -> ProjectArtifact:
+    product = Product(product_name="Test Product")
     db_session.add(product)
     db_session.flush()
 
@@ -31,10 +31,10 @@ def _make_artifact(db_session, tenant_id: uuid.UUID) -> ProjectArtifact:
     return artifact
 
 
-def test_pipeline_advances_through_all_stages(db_session, tenant_id, monkeypatch):
+def test_pipeline_advances_through_all_stages(db_session, monkeypatch):
     monkeypatch.setattr("app.pipeline.executor.publish_event", lambda *a, **k: None)
 
-    artifact = _make_artifact(db_session, tenant_id)
+    artifact = _make_artifact(db_session)
     pipeline = Pipeline(db_session, artifact, NoOpStrategy())
 
     result = pipeline.execute()

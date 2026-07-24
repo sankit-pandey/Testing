@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -16,7 +16,6 @@ from app.db.session import get_db
 from app.models.users import User
 from app.schemas.auth import SSOCallbackRequest, SSOLoginUrlResponse
 from app.schemas.user import RefreshTokenRequest, TokenPair, UserRead
-from app.services import tenant_service
 from app.services.audit_service import record_audit_log
 from app.services.sso_service import SSOError, SSOService
 from app.services.user_service import UserNotProvisionedError, get_or_link_user
@@ -25,20 +24,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/sso/login-url", response_model=SSOLoginUrlResponse)
-async def sso_login_url(
-    tenant_slug: str | None = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-) -> SSOLoginUrlResponse:
-    """Return the DeepHealth SSO authorize URL the SPA should redirect to.
-
-    `tenant_slug` (multi-tenancy extension) is required for normal tenant
-    users; omit it only for the platform-superuser login path.
-    """
-    if tenant_slug is not None:
-        tenant = await tenant_service.get_tenant_by_slug(db, tenant_slug)
-        if tenant is None or not tenant.is_active:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown or inactive tenant")
-
+async def sso_login_url() -> SSOLoginUrlResponse:
+    """Return the DeepHealth SSO authorize URL the SPA should redirect to."""
     state = str(uuid.uuid4())
     try:
         url = SSOService().build_authorize_url(state)
@@ -51,21 +38,12 @@ async def sso_login_url(
 async def sso_callback(
     body: SSOCallbackRequest, request: Request, db: AsyncSession = Depends(get_db)
 ) -> TokenPair:
-    """Exchange the SSO authorization code, resolve the Knewron user (scoped
-    to `tenant_slug`, if given), issue JWTs.
-    """
-    tenant_id: uuid.UUID | None = None
-    if body.tenant_slug is not None:
-        tenant = await tenant_service.get_tenant_by_slug(db, body.tenant_slug)
-        if tenant is None or not tenant.is_active:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown or inactive tenant")
-        tenant_id = tenant.tenant_id
-
+    """Exchange the SSO authorization code, resolve the Knewron user, issue JWTs."""
     sso = SSOService()
     try:
         tokens = await sso.exchange_code(body.code)
         claims = await sso.get_claims(tokens["id_token"])
-        user = await get_or_link_user(db, claims, tenant_id)
+        user = await get_or_link_user(db, claims)
     except SSOError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
     except UserNotProvisionedError as exc:
@@ -74,7 +52,6 @@ async def sso_callback(
     user.last_login_at = datetime.now(timezone.utc)
     await record_audit_log(
         db,
-        tenant_id=user.tenant_id,
         user_id=user.user_id,
         action="login",
         entity_type="user",

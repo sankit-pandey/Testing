@@ -14,7 +14,6 @@ from app.db.base import Base, TimestampMixin, uuid_pk
 
 if TYPE_CHECKING:
     from app.models.artifacts import ProjectArtifact
-    from app.models.products import Product
 
 
 class Project(Base, TimestampMixin):
@@ -66,4 +65,3 @@ class Project(Base, TimestampMixin):
     artifacts: Mapped[list["ProjectArtifact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    product: Mapped["Product"] = relationship()

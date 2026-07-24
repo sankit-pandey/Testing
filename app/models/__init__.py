@@ -15,12 +15,10 @@ from app.models.projects import Project
 from app.models.review_findings import ReviewFinding
 from app.models.stages import ArtifactStage
 from app.models.system_settings import SystemSetting
-from app.models.tenants import Tenant
 from app.models.translation_cache import TranslationCache
 from app.models.users import User
 
 __all__ = [
-    "Tenant",
     "User",
     "Product",
     "Project",

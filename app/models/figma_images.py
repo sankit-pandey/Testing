@@ -1,10 +1,4 @@
-"""`figma_images` — Design ref: `Database_Schema.md` §8; `Figma_Integration.md` §9.
-
-`tenant_id` is a multi-tenancy extension (see `app/models/tenants.py`) —
-denormalized here (rather than relying solely on the `product_id` join) so
-translation-cache-style reuse can never leak across tenants even for a null
-`product_id`.
-"""
+"""`figma_images` — Design ref: `Database_Schema.md` §8; `Figma_Integration.md` §9."""
 import uuid
 
 from sqlalchemy import ForeignKey, Index, String
@@ -20,21 +14,15 @@ class FigmaImage(Base, TimestampMixin):
     __tablename__ = "figma_images"
     __table_args__ = (
         Index("idx_figma_images_product_id", "product_id"),
-        Index("idx_figma_images_tenant_id", "tenant_id"),
         Index("idx_figma_images_file_key", "figma_file_key"),
         Index("idx_figma_images_frame_id", "figma_frame_id"),
         Index("idx_figma_images_hash", "image_hash"),
         Index("idx_figma_images_chromadb", "chromadb_id"),
-        Index(
-            "idx_figma_images_unique", "tenant_id", "figma_file_key", "figma_frame_id", unique=True
-        ),
+        Index("idx_figma_images_unique", "figma_file_key", "figma_frame_id", unique=True),
         {"comment": "Figma image metadata for ChromaDB matching and reuse"},
     )
 
     figma_image_id: Mapped[uuid.UUID] = uuid_pk()
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.tenant_id", ondelete="CASCADE"), nullable=False
-    )
     product_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("products.product_id", ondelete="CASCADE")
     )

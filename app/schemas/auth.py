@@ -1,8 +1,4 @@
-"""Pydantic schemas for the auth/SSO endpoints. Story 1.3.
-
-`tenant_slug` (multi-tenancy extension) scopes login to one tenant; omit it
-only for the platform-superuser login path.
-"""
+"""Pydantic schemas for the auth/SSO endpoints. Story 1.3."""
 from pydantic import BaseModel
 
 
@@ -13,4 +9,3 @@ class SSOLoginUrlResponse(BaseModel):
 
 class SSOCallbackRequest(BaseModel):
     code: str
-    tenant_slug: str | None = None

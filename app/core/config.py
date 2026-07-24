@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     chromadb_host: str = "localhost"
     chromadb_port: int = 8001
     chromadb_image_match_threshold: float = 0.90
+    # Logical partition key stamped on every vector's metadata and applied as
+    # an extra `where` filter on every query, on top of the existing
+    # per-product scoping (Requirements §4.3.1). This is the only place in
+    # the codebase with a "tenant" concept — deliberately not a relational
+    # multi-tenancy model (no `tenants` table, no tenant-scoped auth/users);
+    # just a ChromaDB-level namespace, e.g. for separating environments or
+    # customer deployments that share one ChromaDB instance.
+    chromadb_tenant_id: str = "default"
 
     # AI classifier / embeddings
     ai_image_confidence_threshold: float = 0.70

@@ -1,15 +1,10 @@
-"""Product CRUD — Design ref: `Database_Schema.md` §2. Story 1.1.
-
-Tenant-scoped throughout (multi-tenancy extension): every product belongs to
-`current_user`'s tenant; a mismatched `product_id` 404s rather than 403s, so
-existence is never leaked cross-tenant.
-"""
+"""Product CRUD — Design ref: `Database_Schema.md` §2. Story 1.1."""
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_roles, require_tenant_id
+from app.api.deps import get_current_user, require_roles
 from app.core.roles import WRITE_ROLES
 from app.db.session import get_db
 from app.models.users import User
@@ -27,16 +22,14 @@ async def create_product(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*WRITE_ROLES)),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProductRead:
     try:
-        product = await product_service.create_product(db, body, current_user.user_id, tenant_id)
+        product = await product_service.create_product(db, body, current_user.user_id)
     except product_service.DuplicateProductCodeError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     await record_audit_log(
         db,
-        tenant_id=tenant_id,
         user_id=current_user.user_id,
         action="create_product",
         entity_type="product",
@@ -55,10 +48,9 @@ async def list_products(
     limit: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProductList:
     products, total = await product_service.list_products(
-        db, tenant_id=tenant_id, is_active=is_active, page=page, limit=limit
+        db, is_active=is_active, page=page, limit=limit
     )
     return ProductList(
         products=[ProductRead.from_orm_model(p) for p in products],
@@ -71,9 +63,8 @@ async def get_product(
     product_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProductRead:
-    product = await product_service.get_product(db, product_id, tenant_id)
+    product = await product_service.get_product(db, product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     return ProductRead.from_orm_model(product)
@@ -86,16 +77,14 @@ async def update_product(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*WRITE_ROLES)),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProductRead:
-    product = await product_service.get_product(db, product_id, tenant_id)
+    product = await product_service.get_product(db, product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     product = await product_service.update_product(db, product, body)
     await record_audit_log(
         db,
-        tenant_id=tenant_id,
         user_id=current_user.user_id,
         action="update_product",
         entity_type="product",

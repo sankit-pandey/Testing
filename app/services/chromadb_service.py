@@ -5,6 +5,11 @@ global — prevents cross-product false matches). Story 4.3.
 
 ChromaDB is a **critical dependency**: per `Requirements_Document.md` §4.7.3,
 if ChromaDB is unavailable the job fails outright (no silent skip).
+
+`tenant_id` (config-driven via `CHROMADB_TENANT_ID`, default `"default"`) is
+stamped on every vector and applied as an additional query filter, on top of
+the existing per-product scoping. This is the only tenant concept in the
+codebase — a ChromaDB-level namespace, not a relational multi-tenancy model.
 """
 import uuid
 from typing import Any
@@ -33,6 +38,7 @@ class ChromaDBService:
     def __init__(self) -> None:
         settings = get_settings()
         self.threshold = settings.chromadb_image_match_threshold
+        self.tenant_id = settings.chromadb_tenant_id
         self.breaker = CircuitBreaker("chromadb")
         self._embedder = get_image_embedder()
         try:
@@ -50,9 +56,10 @@ class ChromaDBService:
         """Embed and store an image (Figma-sourced reference screenshots). Story 4.4/5.1."""
         chromadb_id = str(image_id)
         embedding = self._embedder.embed(image_bytes)
+        stamped_metadata = {**metadata, "tenant_id": self.tenant_id}
 
         def _call() -> None:
-            self._collection.upsert(ids=[chromadb_id], embeddings=[embedding], metadatas=[metadata])
+            self._collection.upsert(ids=[chromadb_id], embeddings=[embedding], metadatas=[stamped_metadata])
 
         try:
             self.breaker.call(_call)
@@ -72,7 +79,12 @@ class ChromaDBService:
             return self._collection.query(
                 query_embeddings=[embedding],
                 n_results=n_results,
-                where={"product_id": str(product_id)},
+                where={
+                    "$and": [
+                        {"product_id": {"$eq": str(product_id)}},
+                        {"tenant_id": {"$eq": self.tenant_id}},
+                    ]
+                },
             )
 
         try:

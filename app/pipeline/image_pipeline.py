@@ -65,7 +65,6 @@ def run_image_pipeline(
     classifier = get_image_classifier()
     storage = StorageService()
     product_id = _get_product_id(db, artifact)
-    tenant_id = _get_tenant_id(db, artifact)
 
     try:
         chroma = ChromaDBService()
@@ -117,7 +116,7 @@ def run_image_pipeline(
         proc.status = "matched"
         db.flush()
 
-        cache_row = _lookup_cache(db, tenant_id, image.image_hash, artifact.project.target_language)
+        cache_row = _lookup_cache(db, image.image_hash, artifact.project.target_language)
         if cache_row is not None:
             proc.translated_image_path = cache_row.translated_image_path
             proc.status = "cached"
@@ -127,7 +126,7 @@ def run_image_pipeline(
             db.flush()
             continue
 
-        figma_image = _lookup_figma_image(db, tenant_id, proc.figma_file_key, proc.figma_frame_id)
+        figma_image = _lookup_figma_image(db, proc.figma_file_key, proc.figma_frame_id)
         if figma_image is None:
             proc.status = "manual"
             proc.requires_manual_translation = True
@@ -150,7 +149,7 @@ def run_image_pipeline(
         _finish_subtask(db, artifact, subtask)
         return
 
-    _upload_image_text_batch(db, artifact, subtask, pending_lokalise_batch, tenant_id)
+    _upload_image_text_batch(db, artifact, subtask, pending_lokalise_batch)
     raise PipelineSuspended("image_pipeline: awaiting Lokalise image-text translation")
 
 
@@ -159,9 +158,8 @@ def _upload_image_text_batch(
     artifact: ProjectArtifact,
     subtask: ArtifactSubtask,
     batch: list[dict[str, Any]],
-    tenant_id: uuid.UUID,
 ) -> None:
-    lokalise = LokaliseService(tenant_id=tenant_id)
+    lokalise = LokaliseService()
     items = []
     for entry in batch:
         for variable in entry["variables"]:
@@ -197,9 +195,8 @@ def on_image_translations_ready(db: Session, lokalise_task: LokaliseTask) -> Non
     """
     subtask = db.get(ArtifactSubtask, lokalise_task.subtask_id)
     artifact = db.get(ProjectArtifact, lokalise_task.artifact_id)
-    tenant_id = _get_tenant_id(db, artifact)
-    figma = FigmaService(tenant_id=tenant_id)
-    lokalise = LokaliseService(tenant_id=tenant_id)
+    figma = FigmaService()
+    lokalise = LokaliseService()
 
     bundle_url = lokalise.download_translations(lokalise_task.target_language)
     translations_by_key = fetch_translation_bundle(bundle_url)
@@ -212,7 +209,7 @@ def on_image_translations_ready(db: Session, lokalise_task: LokaliseTask) -> Non
         if proc is None or proc.status != "translating":
             continue
 
-        figma_image = _lookup_figma_image(db, tenant_id, proc.figma_file_key, proc.figma_frame_id)
+        figma_image = _lookup_figma_image(db, proc.figma_file_key, proc.figma_frame_id)
         if figma_image is None:
             proc.status = "manual"
             proc.requires_manual_translation = True
@@ -250,9 +247,7 @@ def on_image_translations_ready(db: Session, lokalise_task: LokaliseTask) -> Non
         db.flush()
 
         if not needs_review:
-            _store_cache(
-                db, tenant_id, proc.image_hash, lokalise_task.target_language, figma_image.figma_frame_id, output_key
-            )
+            _store_cache(db, proc.image_hash, lokalise_task.target_language, figma_image.figma_frame_id, output_key)
 
     db.commit()
     _finish_subtask(db, artifact, subtask)
@@ -269,13 +264,10 @@ def _finish_subtask(db: Session, artifact: ProjectArtifact, subtask: ArtifactSub
     complete_subtask_and_maybe_resume(artifact.artifact_id, subtask.task_type)
 
 
-def _lookup_cache(
-    db: Session, tenant_id: uuid.UUID, image_hash: str, target_language: str
-) -> TranslationCache | None:
+def _lookup_cache(db: Session, image_hash: str, target_language: str) -> TranslationCache | None:
     return (
         db.execute(
             select(TranslationCache).where(
-                TranslationCache.tenant_id == tenant_id,
                 TranslationCache.source_image_hash == image_hash,
                 TranslationCache.target_language == target_language,
             )
@@ -286,15 +278,9 @@ def _lookup_cache(
 
 
 def _store_cache(
-    db: Session,
-    tenant_id: uuid.UUID,
-    image_hash: str,
-    target_language: str,
-    figma_frame_id: str | None,
-    path: str,
+    db: Session, image_hash: str, target_language: str, figma_frame_id: str | None, path: str
 ) -> None:
     cache = TranslationCache(
-        tenant_id=tenant_id,
         source_image_hash=image_hash,
         target_language=target_language,
         figma_frame_id=figma_frame_id,
@@ -304,17 +290,13 @@ def _store_cache(
     db.flush()
 
 
-def _lookup_figma_image(
-    db: Session, tenant_id: uuid.UUID, file_key: str | None, frame_id: str | None
-) -> FigmaImage | None:
+def _lookup_figma_image(db: Session, file_key: str | None, frame_id: str | None) -> FigmaImage | None:
     if not file_key or not frame_id:
         return None
     return (
         db.execute(
             select(FigmaImage).where(
-                FigmaImage.tenant_id == tenant_id,
-                FigmaImage.figma_file_key == file_key,
-                FigmaImage.figma_frame_id == frame_id,
+                FigmaImage.figma_file_key == file_key, FigmaImage.figma_frame_id == frame_id
             )
         )
         .scalars()
@@ -324,10 +306,6 @@ def _lookup_figma_image(
 
 def _get_product_id(db: Session, artifact: ProjectArtifact) -> uuid.UUID:
     return artifact.project.product_id
-
-
-def _get_tenant_id(db: Session, artifact: ProjectArtifact) -> uuid.UUID:
-    return artifact.project.product.tenant_id
 
 
 def _is_uuid(value: str) -> bool:

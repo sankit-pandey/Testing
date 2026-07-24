@@ -1,8 +1,7 @@
 """Stories 1.1/1.3 acceptance: create/list/get product & project; a project
 enforces a single `target_language`; unauthorized requests are blocked;
-`viewer` cannot mutate. Multi-tenancy extension: users/products must be
-persisted (not just constructed in Python) since `created_by`/`tenant_id`
-are real foreign keys.
+`viewer` cannot mutate. Users are persisted (not just constructed in
+Python) since `created_by` is a real foreign key to `users.user_id`.
 """
 import uuid
 
@@ -27,9 +26,8 @@ def override_db(async_db_session):
     app.dependency_overrides.pop(get_db, None)
 
 
-async def _persisted_user(async_db_session, async_tenant_id, role: str) -> User:
+async def _persisted_user(async_db_session, role: str) -> User:
     user = User(
-        tenant_id=async_tenant_id,
         email=f"{role}-{uuid.uuid4().hex[:8]}@example.com",
         full_name="Test User",
         role=role,
@@ -40,16 +38,16 @@ async def _persisted_user(async_db_session, async_tenant_id, role: str) -> User:
 
 
 @pytest_asyncio.fixture()
-async def as_manager(override_db, async_db_session, async_tenant_id):
-    user = await _persisted_user(async_db_session, async_tenant_id, Role.LOCALIZATION_MANAGER.value)
+async def as_manager(override_db, async_db_session):
+    user = await _persisted_user(async_db_session, Role.LOCALIZATION_MANAGER.value)
     app.dependency_overrides[get_current_user] = lambda: user
     yield user
     app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest_asyncio.fixture()
-async def as_viewer(override_db, async_db_session, async_tenant_id):
-    user = await _persisted_user(async_db_session, async_tenant_id, Role.VIEWER.value)
+async def as_viewer(override_db, async_db_session):
+    user = await _persisted_user(async_db_session, Role.VIEWER.value)
     app.dependency_overrides[get_current_user] = lambda: user
     yield user
     app.dependency_overrides.pop(get_current_user, None)
@@ -107,25 +105,3 @@ async def test_viewer_can_list_products(as_viewer):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/products")
     assert response.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_products_are_isolated_per_tenant(as_manager, override_db, async_db_session):
-    """A second tenant's manager must not see the first tenant's products."""
-    from app.models.tenants import Tenant
-
-    other_tenant = Tenant(name="Other Tenant", slug=f"other-{uuid.uuid4().hex[:8]}")
-    async_db_session.add(other_tenant)
-    await async_db_session.commit()
-    other_manager = await _persisted_user(
-        async_db_session, other_tenant.tenant_id, Role.LOCALIZATION_MANAGER.value
-    )
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await client.post("/api/v1/products", json={"productName": "Tenant A Product"})
-
-        app.dependency_overrides[get_current_user] = lambda: other_manager
-        response = await client.get("/api/v1/products")
-
-    assert response.status_code == 200
-    assert response.json()["pagination"]["total"] == 0

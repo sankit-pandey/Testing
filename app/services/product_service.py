@@ -1,10 +1,4 @@
-"""Business logic for `products`. Story 1.1.
-
-All reads/writes are scoped to `tenant_id` (multi-tenancy extension) —
-`get_product` returns `None` for a product that exists but belongs to a
-different tenant, same as "not found", so cross-tenant access never leaks
-whether a given UUID exists.
-"""
+"""Business logic for `products`. Story 1.1."""
 import uuid
 
 from sqlalchemy import func, select
@@ -16,14 +10,13 @@ from app.schemas.product import ProductCreate, ProductUpdate
 
 
 class DuplicateProductCodeError(Exception):
-    """Raised when `product_code` is not unique within the tenant."""
+    """Raised when `product_code` is not unique (`products.product_code` UNIQUE)."""
 
 
 async def create_product(
-    db: AsyncSession, body: ProductCreate, created_by: uuid.UUID, tenant_id: uuid.UUID
+    db: AsyncSession, body: ProductCreate, created_by: uuid.UUID
 ) -> Product:
     product = Product(
-        tenant_id=tenant_id,
         product_name=body.product_name,
         product_code=body.product_code,
         description=body.description,
@@ -39,11 +32,8 @@ async def create_product(
     return product
 
 
-async def get_product(db: AsyncSession, product_id: uuid.UUID, tenant_id: uuid.UUID) -> Product | None:
-    product = await db.get(Product, product_id)
-    if product is None or product.tenant_id != tenant_id:
-        return None
-    return product
+async def get_product(db: AsyncSession, product_id: uuid.UUID) -> Product | None:
+    return await db.get(Product, product_id)
 
 
 async def update_product(db: AsyncSession, product: Product, body: ProductUpdate) -> Product:
@@ -60,10 +50,10 @@ async def update_product(db: AsyncSession, product: Product, body: ProductUpdate
 
 
 async def list_products(
-    db: AsyncSession, *, tenant_id: uuid.UUID, is_active: bool | None, page: int, limit: int
+    db: AsyncSession, *, is_active: bool | None, page: int, limit: int
 ) -> tuple[list[Product], int]:
-    query = select(Product).where(Product.tenant_id == tenant_id)
-    count_query = select(func.count()).select_from(Product).where(Product.tenant_id == tenant_id)
+    query = select(Product)
+    count_query = select(func.count()).select_from(Product)
     if is_active is not None:
         query = query.where(Product.is_active == is_active)
         count_query = count_query.where(Product.is_active == is_active)

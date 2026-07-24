@@ -1,13 +1,7 @@
 """Webhook receivers — Design ref: `Technical_Design_Document.md` §4.3;
 `Architecture_Diagrams.md` §11, §17. Story 4.2.
-
-Multi-tenancy extension: the payload's `project.id` (Lokalise's project,
-not ours) is reverse-looked-up against each tenant's configured
-`lokalise_project_id` override so the signature is verified against that
-tenant's webhook secret rather than only the platform-wide default.
 """
 import asyncio
-import json
 
 from fastapi import APIRouter, Header, Request, status
 from sqlalchemy import select
@@ -16,7 +10,6 @@ from app.core.logging import get_logger
 from app.db.session import SessionLocal
 from app.models.lokalise_tasks import LokaliseTask
 from app.services.lokalise_service import LokaliseService, mark_lokalise_task_completed
-from app.services.tenant_service import find_tenant_id_by_lokalise_project_id, get_tenant_setting_sync
 from app.utils.idempotency import acquire_idempotency_key
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -34,19 +27,11 @@ async def lokalise_webhook(
     """
     raw_body = await request.body()
 
-    try:
-        payload = json.loads(raw_body)
-    except ValueError:
-        logger.warning("lokalise_webhook_invalid_json")
-        return {"received": False}
-
-    lokalise_project_id = payload.get("project", {}).get("id")
-    tenant_id, secret = await asyncio.to_thread(_resolve_webhook_secret, lokalise_project_id)
-
-    if not LokaliseService.verify_webhook_signature(raw_body, x_lokalise_signature, secret):
+    if not LokaliseService.verify_webhook_signature(raw_body, x_lokalise_signature):
         logger.warning("lokalise_webhook_invalid_signature")
         return {"received": False}
 
+    payload = await request.json()
     task_external_id = payload.get("task", {}).get("id")
     task_status = payload.get("task", {}).get("status")
 
@@ -59,14 +44,6 @@ async def lokalise_webhook(
 
     job_id = await asyncio.to_thread(_process_completion, task_external_id)
     return {"received": True, "jobId": job_id}
-
-
-def _resolve_webhook_secret(lokalise_project_id: str | None) -> tuple[object, str | None]:
-    if not lokalise_project_id:
-        return None, None
-    tenant_id = find_tenant_id_by_lokalise_project_id(lokalise_project_id)
-    secret = get_tenant_setting_sync(tenant_id, "lokalise_webhook_secret") if tenant_id else None
-    return tenant_id, secret
 
 
 def _process_completion(task_external_id: str) -> str | None:

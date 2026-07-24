@@ -77,7 +77,7 @@ class IFUStrategy(BaseStrategy):
         )
         db.commit()
 
-        lokalise = LokaliseService(tenant_id=artifact.project.product.tenant_id)
+        lokalise = LokaliseService()
         source_language = (artifact.project.metadata_ or {}).get("source_language", "en")
         target_language = artifact.project.target_language
 
@@ -109,7 +109,7 @@ class IFUStrategy(BaseStrategy):
 
     def assemble(self, db: Session, artifact: ProjectArtifact, ctx: dict[str, Any]) -> dict[str, Any]:
         storage = StorageService()
-        lokalise = LokaliseService(tenant_id=artifact.project.product.tenant_id)
+        lokalise = LokaliseService()
 
         doc_task = (
             db.execute(

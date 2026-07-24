@@ -29,21 +29,12 @@ class FigmaError(Exception):
 
 
 class FigmaService:
-    """`tenant_id` (multi-tenancy extension): each tenant may maintain its
-    own Figma workspace/token. Pass the artifact's tenant to use its
-    `system_settings` override (`figma_access_token`), falling back to the
-    platform-wide `.env` default if unset.
-    """
-
-    def __init__(self, tenant_id: uuid.UUID | None = None) -> None:
-        from app.services.tenant_service import get_tenant_setting_sync
-
+    def __init__(self) -> None:
         settings = get_settings()
-        self.tenant_id = tenant_id
-        self.token = get_tenant_setting_sync(tenant_id, "figma_access_token") or settings.figma_access_token
+        self.token = settings.figma_access_token
         self.base_url = settings.figma_base_url
         self.max_retries = settings.figma_max_retries
-        self.breaker = CircuitBreaker(f"figma:{tenant_id}" if tenant_id else "figma")
+        self.breaker = CircuitBreaker("figma")
         self._semaphore = threading.Semaphore(settings.figma_max_concurrent_requests)
 
     def _headers(self) -> dict[str, str]:

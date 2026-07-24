@@ -11,12 +11,10 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     user_id: uuid.UUID
-    tenant_id: uuid.UUID | None
     email: EmailStr
     full_name: str
     role: Role
     is_active: bool
-    is_superuser: bool
     created_at: datetime
     last_login_at: datetime | None = None
 

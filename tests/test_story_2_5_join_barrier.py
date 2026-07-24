@@ -20,12 +20,12 @@ def fake_redis(monkeypatch):
 
 
 @pytest.fixture()
-def artifact_with_subtasks(db_session, tenant_id, monkeypatch):
+def artifact_with_subtasks(db_session, monkeypatch):
     monkeypatch.setattr("app.pipeline.join_barrier.SessionLocal", lambda: db_session)
     # prevent db_session.close() inside the barrier's `with SessionLocal() as db`
     monkeypatch.setattr(db_session, "close", lambda: None)
 
-    product = Product(tenant_id=tenant_id, product_name="P")
+    product = Product(product_name="P")
     db_session.add(product)
     db_session.flush()
     project = Project(product_id=product.product_id, project_name="Proj", target_language="de")

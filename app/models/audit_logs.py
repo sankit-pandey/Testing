@@ -1,9 +1,4 @@
-"""`audit_logs` — Design ref: `Database_Schema.md` §13.
-
-`tenant_id` is a multi-tenancy extension (see `app/models/tenants.py`);
-nullable because platform-level actions (e.g. a superuser creating a tenant)
-have no tenant.
-"""
+"""`audit_logs` — Design ref: `Database_Schema.md` §13."""
 import uuid
 from datetime import datetime
 
@@ -20,7 +15,6 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     __table_args__ = (
         Index("idx_audit_user_id", "user_id"),
-        Index("idx_audit_tenant_id", "tenant_id"),
         Index("idx_audit_action", "action"),
         Index("idx_audit_entity_type", "entity_type"),
         Index("idx_audit_entity_id", "entity_id"),
@@ -29,7 +23,6 @@ class AuditLog(Base):
     )
 
     log_id: Mapped[uuid.UUID] = uuid_pk()
-    tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.tenant_id", ondelete="CASCADE"))
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.user_id"))
     action: Mapped[str] = mapped_column(
         String(100), nullable=False, comment="create_project, upload_artifact, approve, reject, etc."

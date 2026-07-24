@@ -1,6 +1,5 @@
 """Review queue + sign-off endpoints — Design ref: `Database_Schema.md`
-§11, §12; `LOCKED_Design_v1.0.md` §4. Stories 6.1, 6.2. Tenant-scoped
-throughout (multi-tenancy extension).
+§11, §12; `LOCKED_Design_v1.0.md` §4. Stories 6.1, 6.2.
 """
 import asyncio
 import uuid
@@ -9,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_roles, require_tenant_id
+from app.api.deps import get_current_user, require_roles
 from app.core.roles import WRITE_ROLES
 from app.db.session import get_db
 from app.models.review_findings import ReviewFinding
@@ -32,12 +31,7 @@ async def list_findings(
     artifact_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> list[FindingRead]:
-    artifact = await artifact_service.get_artifact_for_tenant(db, artifact_id, tenant_id)
-    if artifact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
-
     findings = (
         (await db.execute(select(ReviewFinding).where(ReviewFinding.artifact_id == artifact_id)))
         .scalars()
@@ -53,7 +47,6 @@ async def resolve_finding(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*WRITE_ROLES)),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> FindingRead:
     """Resolve/ignore a finding; if no blocking findings remain for the
     artifact, resume the pipeline out of `needs_human_review` (Story 5.2/5.3
@@ -62,11 +55,6 @@ async def resolve_finding(
     finding = await db.get(ReviewFinding, finding_id)
     if finding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
-
-    artifact = await artifact_service.get_artifact_for_tenant(db, finding.artifact_id, tenant_id)
-    if artifact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
-
     if body.status not in ("resolved", "ignored"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="status must be resolved|ignored")
 
@@ -78,7 +66,6 @@ async def resolve_finding(
 
     await record_audit_log(
         db,
-        tenant_id=tenant_id,
         user_id=current_user.user_id,
         action="resolve_finding",
         entity_type="review_finding",
@@ -102,10 +89,12 @@ async def resolve_finding(
         .all()
     )
 
-    if not remaining and artifact.status == "needs_human_review":
-        from app.tasks.pipeline_tasks import resume_pipeline
+    if not remaining:
+        artifact = await artifact_service.get_artifact(db, finding.artifact_id)
+        if artifact is not None and artifact.status == "needs_human_review":
+            from app.tasks.pipeline_tasks import resume_pipeline
 
-        await asyncio.to_thread(resume_pipeline.delay, str(artifact.artifact_id), "findings_resolved")
+            await asyncio.to_thread(resume_pipeline.delay, str(artifact.artifact_id), "findings_resolved")
 
     return FindingRead.model_validate(finding)
 
@@ -117,19 +106,15 @@ async def approve_artifact(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*WRITE_ROLES)),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ApprovalRead:
-    artifact = await artifact_service.get_artifact_for_tenant(db, artifact_id, tenant_id)
+    artifact = await artifact_service.get_artifact(db, artifact_id)
     if artifact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
 
-    approval = await asyncio.to_thread(
-        _submit_approval_sync, artifact_id, current_user.user_id, "approved", body.comments, None
-    )
+    approval = await asyncio.to_thread(_submit_approval_sync, artifact_id, current_user.user_id, "approved", body.comments, None)
 
     await record_audit_log(
         db,
-        tenant_id=tenant_id,
         user_id=current_user.user_id,
         action="approve_artifact",
         entity_type="artifact",
@@ -148,9 +133,8 @@ async def reject_artifact(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*WRITE_ROLES)),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ApprovalRead:
-    artifact = await artifact_service.get_artifact_for_tenant(db, artifact_id, tenant_id)
+    artifact = await artifact_service.get_artifact(db, artifact_id)
     if artifact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
 
@@ -160,7 +144,6 @@ async def reject_artifact(
 
     await record_audit_log(
         db,
-        tenant_id=tenant_id,
         user_id=current_user.user_id,
         action="reject_artifact",
         entity_type="artifact",

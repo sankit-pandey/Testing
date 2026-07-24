@@ -1,12 +1,12 @@
 """Project CRUD — Design ref: `Database_Schema.md` §3; `Technical_Design_Document.md`
-§4.1.1. Story 1.1. Tenant-scoped throughout (multi-tenancy extension).
+§4.1.1. Story 1.1.
 """
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_roles, require_tenant_id
+from app.api.deps import get_current_user, require_roles
 from app.core.roles import WRITE_ROLES
 from app.db.session import get_db
 from app.models.users import User
@@ -25,18 +25,14 @@ async def create_project(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(*WRITE_ROLES)),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProjectCreateResponse:
     try:
-        project = await project_service.create_project(db, body, current_user.user_id, tenant_id)
-    except project_service.ProductNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        project = await project_service.create_project(db, body, current_user.user_id)
     except project_service.DuplicateProjectError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     await record_audit_log(
         db,
-        tenant_id=tenant_id,
         user_id=current_user.user_id,
         action="create_project",
         entity_type="project",
@@ -58,10 +54,9 @@ async def list_projects(
     limit: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProjectList:
     projects, total = await project_service.list_projects(
-        db, tenant_id=tenant_id, status=status_filter, product_id=product_id, page=page, limit=limit
+        db, status=status_filter, product_id=product_id, page=page, limit=limit
     )
     return ProjectList(
         projects=[ProjectRead.from_orm_model(p) for p in projects],
@@ -74,9 +69,8 @@ async def get_project(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_id: uuid.UUID = Depends(require_tenant_id),
 ) -> ProjectDetail:
-    project = await project_service.get_project_with_artifacts(db, project_id, tenant_id)
+    project = await project_service.get_project_with_artifacts(db, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 

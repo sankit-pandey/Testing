@@ -39,28 +39,14 @@ class LokaliseError(Exception):
 
 
 class LokaliseService:
-    """Sync client (runs inside Celery workers) for the Lokalise API.
+    """Sync client (runs inside Celery workers) for the Lokalise API."""
 
-    `tenant_id` (multi-tenancy extension): each tenant may have its own
-    Lokalise account (a real SaaS customer would — a shared account across
-    tenants would mix their translation projects). Pass the artifact's
-    tenant to use its `system_settings` override
-    (`lokalise_api_token`/`lokalise_project_id`), falling back to the
-    platform-wide `.env` default if unset — see
-    `app/services/tenant_service.get_tenant_setting_sync`.
-    """
-
-    def __init__(self, tenant_id: uuid.UUID | None = None) -> None:
-        from app.services.tenant_service import get_tenant_setting_sync
-
+    def __init__(self) -> None:
         settings = get_settings()
-        self.tenant_id = tenant_id
-        self.token = get_tenant_setting_sync(tenant_id, "lokalise_api_token") or settings.lokalise_api_token
-        self.project_id = (
-            get_tenant_setting_sync(tenant_id, "lokalise_project_id") or settings.lokalise_project_id
-        )
+        self.token = settings.lokalise_api_token
+        self.project_id = settings.lokalise_project_id
         self.base_url = settings.lokalise_base_url
-        self.breaker = CircuitBreaker(f"lokalise:{tenant_id}" if tenant_id else "lokalise")
+        self.breaker = CircuitBreaker("lokalise")
 
     def _headers(self) -> dict[str, str]:
         return {"X-Api-Token": self.token or "", "Content-Type": "application/json"}
@@ -137,15 +123,13 @@ class LokaliseService:
         return data["bundle_url"]
 
     @staticmethod
-    def verify_webhook_signature(raw_body: bytes, signature: str | None, secret: str | None = None) -> bool:
-        """`secret` lets the caller pass a tenant-resolved webhook secret
-        (multi-tenancy extension — see `app/api/v1/endpoints/webhooks.py`);
-        falls back to the platform-wide `.env` default if not given.
-        """
-        resolved_secret = secret or get_settings().lokalise_webhook_secret
-        if not resolved_secret or not signature:
+    def verify_webhook_signature(raw_body: bytes, signature: str | None) -> bool:
+        settings = get_settings()
+        if not settings.lokalise_webhook_secret or not signature:
             return False
-        computed = hmac.new(resolved_secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        computed = hmac.new(
+            settings.lokalise_webhook_secret.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
         return hmac.compare_digest(computed, signature)
 
 
@@ -257,28 +241,13 @@ def mark_lokalise_task_completed(
     return True
 
 
-def _resolve_tenant_id(db: Session, lokalise_task: LokaliseTask) -> Any:
-    """Each `lokalise_tasks` row may belong to a different tenant (via
-    `artifact_id -> project -> product`); the poller must use that tenant's
-    credentials, not the platform-wide default, or a shared/global Lokalise
-    account would be assumed for every tenant.
-    """
-    if not lokalise_task.artifact_id:
-        return None
-    from app.models.artifacts import ProjectArtifact
-
-    artifact = db.get(ProjectArtifact, lokalise_task.artifact_id)
-    if artifact is None:
-        return None
-    return artifact.project.product.tenant_id
-
-
 def poll_and_resume_pending_tasks() -> dict[str, int]:
     """Celery Beat entrypoint (every `LOKALISE_POLL_INTERVAL_MINUTES`):
     poll every non-terminal `lokalise_tasks` row; resume the pipeline for any
     that have completed since the last poll. Fallback for missed webhooks
     (LOCKED §7; Architecture_Diagrams §11, §17).
     """
+    service = LokaliseService()
     polled = 0
     completed = 0
 
@@ -298,7 +267,6 @@ def poll_and_resume_pending_tasks() -> dict[str, int]:
                 continue
             polled += 1
             task.polling_count += 1
-            service = LokaliseService(tenant_id=_resolve_tenant_id(db, task))
             try:
                 remote_status = service.get_task_status(task.lokalise_task_external_id)
             except LokaliseError as exc:
