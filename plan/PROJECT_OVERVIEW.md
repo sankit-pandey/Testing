@@ -2,36 +2,53 @@
 
 **Project:** Knewron AI Localization Platform  
 **Client:** DeepHealth  
-**Last Updated:** July 20, 2026  
-**Current Phase:** Design Locked (v1.0) - Ready for Implementation Planning
+**Last Updated:** July 24, 2026  
+**Current Phase:** ✅ **Implemented** — see `LLM_BUILD_GUIDE.md` for the
+condensed technical brief, or `../README.md` for how to run the code.
 
 ---
 
 ## 📁 Project Structure
 
+This `plan/` folder is one part of the `knewron-localization/` repository;
+the implemented backend lives alongside it at `../app/`.
+
 ```
-C:\Projects\AI Localization\
+knewron-localization/                 ← repo root
 │
-├── Requirements/                    ← Requirements Documentation
-│   ├── README.md
-│   ├── Requirements_Document.md     (35 KB - Main requirements)
-│   ├── Requirements_Summary.md      (7 KB - Executive summary)
-│   ├── Requirements_Review_Report.md (9 KB - Quality review)
-│   └── Open_Items_Tracker.md        (7 KB - Action items)
+├── app/                              ← IMPLEMENTED BACKEND (Python/FastAPI)
+├── tests/                            ← pytest suite
+├── others/                           ← raw source materials (sample IFU PDF,
+│                                        Figma metadata screenshots, extracted
+│                                        text) — reference only
+├── .github/                          ← coding-convention instruction files
+├── pyproject.toml, docker-compose.yml, Dockerfile, alembic.ini, README.md
 │
-├── Design/                          ← Technical Design
-│   ├── README.md
-│   ├── LOCKED_Design_v1.0.md        (Authoritative locked architecture)
-│   ├── Technical_Design_Document.md (v2.0 - Detailed design)
-│   └── Database_Schema.md           (Canonical DB schema - 14 tables)
-│
-├── Source Documents/                ← Reference materials
-│   ├── Citiustech Localization Solution 1.pdf
-│   ├── Knewron_Localization_Platform_Overview.docx
-│   ├── DH_Diagnostic_Suite_IFU_US.pdf (Sample IFU)
-│   └── [Workflow diagrams and images]
-│
-└── PROJECT_OVERVIEW.md              ← This file
+└── plan/                             ← THIS folder (design record)
+    ├── LLM_BUILD_GUIDE.md            ← start here (any LLM/agent)
+    ├── README.md                     ← narrative tour of this folder
+    ├── PROJECT_OVERVIEW.md           ← this file
+    │
+    ├── Requirements/                 ← Requirements Documentation
+    │   ├── README.md
+    │   ├── Requirements_Document.md      (v1.3 - main requirements)
+    │   ├── Requirements_Summary.md       (v1.2 - executive summary)
+    │   └── Open_Items_Tracker.md         (action items)
+    │
+    ├── Design/                       ← Technical Design
+    │   ├── README.md
+    │   ├── LOCKED_Design_v1.0.md         (authoritative locked architecture)
+    │   ├── Technical_Design_Document.md  (v2.1 - detailed design + §11 extensions addendum)
+    │   ├── Database_Schema.md            (canonical DB schema - 14 tables)
+    │   ├── Architecture_Diagrams.md      (v1.1 - Mermaid diagrams)
+    │   └── Figma_Integration.md
+    │
+    ├── Implementation/               ← Story backlog + traceability (all ✅ done)
+    │   ├── Implementation_Plan.md
+    │   └── Design_Traceability_Matrix.md
+    │
+    ├── rules/                        ← governance rules (tool-agnostic)
+    └── UX/                           ← UX mockups & review
 ```
 
 ---
@@ -68,14 +85,24 @@ An AI-powered localization platform that automates the translation of:
 - **Status:** APPROVED
 
 ### **Phase 2: Technical Design** ✅ COMPLETE
-- **Duration:** July 19, 2026
+- **Duration:** July 19-20, 2026
 - **Deliverables:**
   - Technical Design Document
   - System Architecture
   - Database Schema
   - API Specifications
   - Integration Design
-- **Status:** Ready for Review
+- **Status:** Locked (v1.0), superseded for detail by Technical_Design_Document.md v2.1
+
+### **Phase 3: Implementation** ✅ COMPLETE
+- **Duration:** through July 24, 2026
+- **Deliverables:**
+  - Full backend at `../app/` — all 26 original stories (`0.1`–`7.4`) plus
+    5 post-implementation extension stories (`8.1`–`8.5`)
+  - Test suite (`../tests/`), CI workflow (`../.github/workflows/ci.yml`)
+  - Design_Traceability_Matrix.md fully green (every design element traced
+    to an implemented story)
+- **Status:** Done — see `LLM_BUILD_GUIDE.md` for the technical summary
 
 ---
 
@@ -227,50 +254,45 @@ An AI-powered localization platform that automates the translation of:
 
 ## 📋 Open Items
 
-### **High Priority:**
-1. Lokalise API POC (in progress)
-2. Webhook specifications (TBD)
-3. UI resource files analysis (starting this week)
-4. Training video analysis (pending samples)
+Still genuinely open (unresolved requirements-level questions, not blocking
+what was built — see `Requirements/Open_Items_Tracker.md` for current
+detail):
+1. Webhook payload specifications from Lokalise (exact events/fields) — the
+   implementation follows the illustrative shape in
+   `Technical_Design_Document.md` §4.3 pending confirmation.
+2. UI resource file format confirmation (implemented for
+   JSON/XML/YAML/Properties/RESX per Requirements §3.3's expected list).
+3. Training video samples/specs (Video remains out of scope — §9 of
+   `LLM_BUILD_GUIDE.md`).
+4. Regulatory-symbol translation policy (Requirements §4.1, "Type 3: TBD").
+5. Section 7 (Non-Functional Requirements) — still on hold, per
+   `Requirements_Document.md`.
 
-### **Medium Priority:**
-5. Progress indicators (UI/UX design)
-6. Figma API rate limits (recommend 5-10 concurrent)
-7. Processing time targets (TBD)
-
-### **Deferred:**
-8. GitLab integration (future phase)
-9. API access (future phase)
-10. Section 7: Non-Functional Requirements (on hold)
+Resolved since the last version of this document: cloud platform choice
+(AWS/GCP) is now a concrete, config-driven implementation (`Technical_Design`
+§11.1–§11.2), and GitLab integration / public API access remain deferred by
+design (not accidentally missing).
 
 ---
 
-## 🎯 Next Steps
+## 🎯 Status & Next Steps
 
-### **Immediate (Week 1-2):**
-1. ✅ Requirements complete
-2. ✅ Design complete
-3. ⏳ **Review and approve design**
-4. ⏳ **Complete Lokalise API POC**
-5. ⏳ **Set up development environment**
+**Implementation is complete.** What used to be "next steps" here (review
+design, set up dev environment, implement, test, deploy) has all happened —
+see §"Completed Work" above and `LLM_BUILD_GUIDE.md` for the technical
+summary. Remaining forward-looking items are genuinely open questions, not
+build tasks:
 
-### **Short Term (Week 3-4):**
-6. ⏳ Sprint 1 planning
-7. ⏳ Begin implementation
-8. ⏳ Set up CI/CD pipeline
-9. ⏳ Database schema creation
+1. Resolve the open items above (mostly external: Lokalise API details, UI
+   resource/video samples from the client).
+2. UAT with DeepHealth against the running backend.
+3. Production deployment to the customer's cloud environment (AWS or GCP —
+   both are supported per §11.1–§11.2; select via `.env`).
+4. Post-launch support & monitoring.
 
-### **Medium Term (Month 2-3):**
-10. ⏳ Core services implementation
-11. ⏳ Integration testing
-12. ⏳ UI development
-13. ⏳ End-to-end testing
-
-### **Long Term (Month 4+):**
-14. ⏳ UAT with DeepHealth
-15. ⏳ Production deployment
-16. ⏳ Go-live
-17. ⏳ Post-launch support
+If you are an LLM/agent picking this up: don't restart "Sprint 1" or
+re-scaffold the project — the code already exists at `../app/`. Read
+`LLM_BUILD_GUIDE.md` first.
 
 ---
 
@@ -308,21 +330,31 @@ An AI-powered localization platform that automates the translation of:
 
 ## 📚 Documentation Index
 
+### **Start here:**
+- [LLM Build Guide](LLM_BUILD_GUIDE.md) - dense, self-contained technical brief (any LLM/agent)
+- [Design & Planning README](README.md) - narrative tour of this folder
+
 ### **Requirements:**
-- [Requirements Document](Requirements/Requirements_Document.md) - Complete requirements (v1.2)
-- [Requirements Summary](Requirements/Requirements_Summary.md) - Executive overview
-- [Review Report](Requirements/Requirements_Review_Report.md) - Quality assessment
+- [Requirements Document](Requirements/Requirements_Document.md) - Complete requirements (v1.3)
+- [Requirements Summary](Requirements/Requirements_Summary.md) - Executive overview (v1.2)
 - [Open Items](Requirements/Open_Items_Tracker.md) - Pending decisions
 
 ### **Design:**
 - [LOCKED Design](Design/LOCKED_Design_v1.0.md) - Authoritative locked architecture ⭐
-- [Technical Design](Design/Technical_Design_Document.md) - Detailed system design (v2.0)
+- [Technical Design](Design/Technical_Design_Document.md) - Detailed system design (v2.1, §11 = post-implementation extensions)
 - [Database Schema](Design/Database_Schema.md) - Canonical DB schema (14 tables)
+- [Architecture Diagrams](Design/Architecture_Diagrams.md) - Mermaid diagrams (v1.1)
+- [Figma Integration](Design/Figma_Integration.md) - Figma metadata/rendering contract
 - [Design Overview](Design/README.md) - Design summary & index
 
+### **Implementation status:**
+- [Implementation Plan](Implementation/Implementation_Plan.md) - full story backlog, all ✅ done
+- [Design Traceability Matrix](Implementation/Design_Traceability_Matrix.md) - design element → story mapping
+
 ### **Reference:**
-- Source documents in root folder
-- Sample IFU: DH_Diagnostic_Suite_IFU_US.pdf
+- `../others/` - raw source materials (sample IFU PDF, Figma metadata
+  screenshots, extracted text) — reference only, not authoritative
+- Sample IFU: `../others/DH_Diagnostic_Suite_IFU_US.pdf`
 
 ---
 
@@ -330,33 +362,35 @@ An AI-powered localization platform that automates the translation of:
 
 | Phase | Status | Completion |
 |-------|--------|------------|
-| **Requirements** | ✅ Complete | 100% (6 of 7 sections) |
-| **Design** | ✅ Complete | 100% |
-| **Development** | ⏳ Not Started | 0% |
-| **Testing** | ⏳ Not Started | 0% |
-| **Deployment** | ⏳ Not Started | 0% |
+| **Requirements** | ✅ Complete | 100% (6 of 7 sections; Section 7 on hold) |
+| **Design** | ✅ Complete | 100% (+ §11 post-implementation addendum) |
+| **Development** | ✅ Complete | 100% (all stories `0.1`–`8.5`) |
+| **Testing** | ✅ Complete | `../tests/`, CI green (`.github/workflows/ci.yml`) |
+| **Deployment** | ⏳ Not started | 0% — UAT/production rollout to DeepHealth still pending |
 
-**Overall Project:** 40% Complete (Requirements + Design)
+**Overall Project:** ~95% Complete (Requirements + Design + Development + Testing done; UAT/production deployment remaining)
 
 ---
 
 ## 🎉 Achievements
 
 ✅ Comprehensive requirements gathered (114 pages)  
-✅ Quality review completed (9/10 score)  
-✅ Technical design completed (42 pages)  
-✅ Database schema defined  
-✅ API specifications created  
-✅ Integration design completed  
-✅ Security design finalized  
-✅ Deployment architecture defined  
+✅ Technical design completed and locked  
+✅ Database schema defined (14 tables) and implemented verbatim  
+✅ API specifications created and implemented (REST + WebSocket + webhooks)  
+✅ Integration design completed and implemented (Lokalise, Figma, ChromaDB, SSO)  
+✅ Security design finalized and implemented (SSO/JWT/RBAC, audit logging)  
+✅ Deployment architecture defined and implemented (Docker Compose, Poetry, CI)  
+✅ **Full backend built, tested, and running** — see `../app/` and `LLM_BUILD_GUIDE.md`  
+✅ Four post-implementation infrastructure extensions delivered (§11 addendum)  
 
 ---
 
-**Project is ready to move into implementation phase!** 🚀
+**Implementation phase is complete.** Remaining work is UAT and production
+rollout, not further development, unless new requirements emerge.
 
 ---
 
-**Last Updated:** July 20, 2026  
+**Last Updated:** July 24, 2026  
 **Document Owner:** Project Manager  
-**Next Review:** [Date]
+**Next Review:** Upon UAT kickoff or new requirements

@@ -2,8 +2,12 @@
 
 **Project:** Knewron AI Localization Platform  
 **Client:** DeepHealth  
-**Last Updated:** July 20, 2026  
-**Status:** ✅ Design Locked (v1.0)
+**Last Updated:** July 24, 2026  
+**Status:** ✅ Design Locked (v1.0) — **and fully implemented** at `../../app/`.
+`Technical_Design_Document.md` §11 is a later addendum covering four
+post-implementation infrastructure extensions (multi-cloud storage/
+embeddings, ChromaDB tenant partition key, Poetry, externalized Redis) —
+see `../LLM_BUILD_GUIDE.md` §7 for the condensed version.
 
 ---
 
@@ -19,10 +23,12 @@ This folder contains all design documentation for the AI Localization Platform p
    - Concurrency, sizing, deployment, data stores
    - **Start here**
 
-2. **Technical_Design_Document.md** (v2.0)
+2. **Technical_Design_Document.md** (v2.1)
    - Detailed system architecture & component design
    - API specifications (project/artifact model)
    - Integration, security, deployment, data flow
+   - §11 (addendum): post-implementation extensions — multi-cloud storage/
+     embeddings, ChromaDB tenant partition key, Poetry, externalized Redis
 
 3. **Database_Schema.md**
    - Canonical PostgreSQL schema (14 tables), ChromaDB collections
@@ -197,13 +203,17 @@ Upload → Extract → Classify → Match → Translate → Assemble → Deliver
 
 ---
 
-## 📋 Next Steps
+## 📋 Status
 
 1. ✅ Design locked (LOCKED_Design_v1.0.md)
-2. ✅ Database schema (Database_Schema.md)
-3. ✅ Technical design aligned (Technical_Design_Document.md v2.0)
-4. ⏳ Project scaffolding & Docker Compose setup
-5. ⏳ Implement pipeline framework + IFU/UI Resource strategies (Sprint 1)
+2. ✅ Database schema (Database_Schema.md) — implemented verbatim
+3. ✅ Technical design aligned (Technical_Design_Document.md v2.1, incl. §11 addendum)
+4. ✅ Project scaffolding & Docker Compose setup — done
+5. ✅ Pipeline framework + IFU/UI Resource strategies — implemented end-to-end
+
+All design here is implemented at `../../app/`. See `../LLM_BUILD_GUIDE.md`
+for the full story list and `../Implementation/Implementation_Plan.md` for
+acceptance criteria per story.
 
 ---
 
@@ -225,5 +235,5 @@ For questions about the design, contact:
 
 ---
 
-**Last Updated:** July 20, 2026  
-**Design Status:** ✅ Locked (v1.0) - Ready for Implementation Planning
+**Last Updated:** July 24, 2026  
+**Design Status:** ✅ Locked (v1.0) + §11 addendum — **Implemented**

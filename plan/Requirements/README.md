@@ -2,8 +2,9 @@
 
 **Project:** Knewron AI Localization Platform  
 **Client:** DeepHealth  
-**Last Updated:** July 19, 2026  
-**Status:** Draft - Sections 1-6 Complete, Section 7 On Hold
+**Last Updated:** July 24, 2026  
+**Status:** Draft - Sections 1-6 Complete, Section 7 On Hold. **Implemented**
+at `../../app/` — see `../LLM_BUILD_GUIDE.md` for the technical summary.
 
 ---
 
@@ -13,30 +14,29 @@ This folder contains all requirements documentation for the AI Localization Plat
 
 ### **Main Documents:**
 
-1. **Requirements_Document.md** (35 KB)
+1. **Requirements_Document.md**
    - **Primary requirements document**
    - Comprehensive coverage of Sections 1-6
-   - Version 1.1 (reviewed and corrected)
-   - 1,101 lines of detailed requirements
+   - Version 1.3 (synced to locked design + implementation notes for the
+     post-implementation extensions — Sec 6.2.1, 6.3.2)
    - **Start here for complete requirements**
 
-2. **Requirements_Summary.md** (7 KB)
+2. **Requirements_Summary.md** (v1.2)
    - **Executive summary**
    - High-level overview for stakeholders
    - Quick reference guide
    - **Start here for overview**
 
-3. **Requirements_Review_Report.md** (9 KB)
-   - **Quality assurance report**
-   - Review findings and corrections
-   - Quality score: 9/10
-   - Approval status: APPROVED (v1.1)
-
-4. **Open_Items_Tracker.md** (7 KB)
+3. **Open_Items_Tracker.md**
    - **Action items and pending decisions**
    - Status tracking with priorities
    - Dependencies and blockers
    - **Check here for what's pending**
+
+> There is no separate `Requirements_Review_Report.md` in this folder (an
+> earlier version of this index referenced one that was never added). The
+> quality-review outcome — approved, 3 discrepancies fixed — is folded into
+> `Requirements_Document.md`'s own Document Control table (v1.1 row).
 
 ---
 
@@ -51,8 +51,9 @@ This folder contains all requirements documentation for the AI Localization Plat
 ### **For Project Managers:**
 → Track progress with **Open_Items_Tracker.md**
 
-### **For Quality Assurance:**
-→ Review **Requirements_Review_Report.md**
+### **For QA / testing this implementation:**
+→ See `../../tests/` and `../Implementation/Design_Traceability_Matrix.md`
+(design element → implementing story/test)
 
 ---
 
@@ -149,6 +150,8 @@ See **Open_Items_Tracker.md** for complete list.
 |---------|------|---------|
 | 1.0 | July 19, 2026 | Initial requirements gathering (Sections 1-6) |
 | 1.1 | July 19, 2026 | Fixed 3 discrepancies, quality review complete |
+| 1.2 | July 20, 2026 | Synced to locked design: one-project-per-language + multi-artifact model, `viewer` role naming, concurrency note |
+| 1.3 | July 24, 2026 | Implementation notes added for the post-implementation extensions (Sec 6.2.1 cloud storage/embedding providers, Sec 6.3.2 ChromaDB partition key) — no functional requirement changed |
 
 ---
 
@@ -161,15 +164,16 @@ See **Open_Items_Tracker.md** for complete list.
 
 ---
 
-## 🔄 Next Steps
+## 🔄 Status
 
 1. ✅ Requirements gathering complete (Sections 1-6)
 2. ✅ Quality review complete (v1.1 approved)
-3. ⏳ Distribute to stakeholders for feedback
-4. ⏳ Complete high-priority open items
-5. ⏳ Finalize Section 7 (when ready)
-6. ⏳ Obtain stakeholder sign-off
-7. ⏳ Proceed to technical design phase
+3. ✅ Technical design complete (`../Design/Technical_Design_Document.md`)
+4. ✅ **Implementation complete** (`../../app/`) — see `../LLM_BUILD_GUIDE.md`
+5. ⏳ Finalize Section 7 (Non-Functional Requirements) — still on hold
+6. ⏳ Resolve remaining open items (see `Open_Items_Tracker.md`) — mostly
+   external (Lokalise API confirmation, video samples), not blocking
+7. ⏳ UAT / production rollout to DeepHealth
 
 ---
 
@@ -181,5 +185,5 @@ For questions or updates to these requirements, contact:
 
 ---
 
-**Last Updated:** July 19, 2026  
-**Document Status:** APPROVED (v1.1)
+**Last Updated:** July 24, 2026  
+**Document Status:** APPROVED (v1.3) — implemented
