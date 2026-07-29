@@ -83,7 +83,7 @@ column, unless noted. Implemented verbatim in `app/models/` + migration
 | `artifact_stages` | Per-artifact pipeline stage tracking (one row per stage name) |
 | `artifact_subtasks` | Parallel sub-tasks within `orchestrate` (the join-barrier rows) |
 | `image_processing` | Per-image classification/match/translation status |
-| `figma_images` | Cached Figma frame metadata for ChromaDB matching/reuse |
+| `figma_images` | Cached Figma frame metadata for ChromaDB matching/reuse — populated by the ingestion endpoint (`POST /api/v1/figma/ingest`, `app/services/figma_ingestion_service.py`), read by the runtime image sub-pipeline |
 | `translation_cache` | Cached translated images, keyed by `(source_image_hash, target_language)` |
 | `lokalise_tasks` | Lokalise task tracking (webhook + polling) |
 | `review_findings` | AI/human review findings |
@@ -178,7 +178,7 @@ Acceptance before modifying that area.
 | 1 — Core domain & API | 1.1–1.3 | Products/Projects/Artifacts CRUD, upload, SSO/JWT/RBAC |
 | 2 — Pipeline framework | 2.1–2.5 | Executor, state machine, checkpointing, circuit breaker/retry/idempotency/saga, parallel join barrier |
 | 3 — Real-time | 3.1 | Redis Pub/Sub → WebSocket progress |
-| 4 — Integrations | 4.1–4.4 | Storage, Lokalise (webhook+poll), ChromaDB, Figma |
+| 4 — Integrations | 4.1–4.5 | Storage, Lokalise (webhook+poll), ChromaDB, Figma rendering (4.4), Figma metadata→ChromaDB ingestion (4.5, `POST /api/v1/figma/ingest`) |
 | 5 — Strategies | 5.1–5.3 | Image sub-pipeline, **IFU** end-to-end, **UI Resource** end-to-end. `5.4` (Video) is **out of scope** |
 | 6 — Review/sign-off/download | 6.1–6.3 | AI reviewer + findings, human approve/reject, per-artifact download (partial completion) |
 | 7 — Cross-cutting | 7.1–7.4 | Audit logging, notifications, observability, tests/CI |

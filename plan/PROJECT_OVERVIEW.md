@@ -97,8 +97,9 @@ An AI-powered localization platform that automates the translation of:
 ### **Phase 3: Implementation** ✅ COMPLETE
 - **Duration:** through July 24, 2026
 - **Deliverables:**
-  - Full backend at `../app/` — all 26 original stories (`0.1`–`7.4`) plus
-    5 post-implementation extension stories (`8.1`–`8.5`)
+  - Full backend at `../app/` — all 27 original stories (`0.1`–`7.4`,
+    including `4.5` Figma metadata ingestion) plus 5 post-implementation
+    extension stories (`8.1`–`8.5`)
   - Test suite (`../tests/`), CI workflow (`../.github/workflows/ci.yml`)
   - Design_Traceability_Matrix.md fully green (every design element traced
     to an implemented story)

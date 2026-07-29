@@ -1,5 +1,5 @@
 """Figma metadata ingestion endpoint — Design ref: `Figma_Integration.md`
-§3 step 8, §4. Story 4.4. Admin-only: this is a system/integration
+§3 step 8, §4. Story 4.5. Admin-only: this is a system/integration
 configuration action (`Requirements_Document.md` §2.2 — Admin: "Integration
 configuration"), run once per Figma frame after the design team's
 "Build & Export Metadata" plugin run.

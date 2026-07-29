@@ -1,5 +1,5 @@
 """Pydantic schema for the Figma metadata ingestion endpoint — Design ref:
-`Figma_Integration.md` §4. Story 4.4.
+`Figma_Integration.md` §4. Story 4.5.
 """
 import uuid
 from typing import Any

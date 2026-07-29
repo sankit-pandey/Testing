@@ -2,7 +2,7 @@
 
 **Purpose:** Guarantee that **every design point is implemented** and **every story is anchored to design**. This is the enforcement layer that makes the `Design/` folder the source of truth.
 
-**Date:** July 24, 2026 · **Version:** 1.1 · **Status:** ✅ All stories `0.1`–`8.5` complete (living document — update again if extended further)
+**Date:** July 24, 2026 · **Version:** 1.2 · **Status:** ✅ All stories complete, including `4.5` (living document — update again if extended further)
 
 **How to use**
 - **Reverse map (§2)** — every design element must have an implementing story. Any element with **no story = coverage gap** (red flag).
@@ -61,7 +61,7 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Out of scope
 | `artifact_stages` | Database_Schema | 2.2 | ✅ |
 | `artifact_subtasks` | Database_Schema | 2.5 | ✅ |
 | `image_processing` | Database_Schema | 5.1 | ✅ |
-| `figma_images` | Database_Schema; Figma_Integration §9 | 4.4 | ✅ |
+| `figma_images` | Database_Schema; Figma_Integration §9 | 4.5 (written); 4.4 (read) | ✅ |
 | `translation_cache` | Database_Schema | 5.1 | ✅ |
 | `lokalise_tasks` | Database_Schema | 4.2 | ✅ |
 | `review_findings` | Database_Schema | 6.1 | ✅ |
@@ -77,7 +77,8 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Out of scope
 | Lokalise (upload/status/webhook/poll) | LOCKED §7; Arch §11, §17 | 4.2 | ✅ |
 | ChromaDB match (≥ 90%) | LOCKED §5 | 4.3 | ✅ |
 | Figma render/export (variables/modes) | Figma_Integration §4–§7 | 4.4 | ✅ |
-| Figma design-time prep workflow | Figma_Integration §3 | External/design-time (documented; not app code) | ✅ |
+| Figma design-time prep (clone workspace, run plugin, bind variables, export metadata JSON, upload to central storage) — steps 1–7 | Figma_Integration §3 steps 1–7 | External/design-time (documented; not app code) | ✅ |
+| Figma metadata ingestion → ChromaDB population ("Figma Ingestion API" in the §3 sequence diagram) — step 8 | Figma_Integration §3 step 8, §4, §9 | 4.5 | ✅ |
 | DeepHealth SSO | Requirements §6; LOCKED §12 | 1.3 | ✅ |
 
 ### Artifact Workflows
@@ -140,7 +141,8 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Out of scope
 | 4.1 | LOCKED §9; Technical_Design (storage) |
 | 4.2 | LOCKED §7; Arch §11, §17; Database_Schema (lokalise_tasks) |
 | 4.3 | LOCKED §5; Technical_Design §3; Database_Schema (image_processing) |
-| 4.4 | Figma_Integration (all); Database_Schema (figma_images, translation_cache) |
+| 4.4 | Figma_Integration §5–§7; Database_Schema (figma_images, translation_cache) |
+| 4.5 | Figma_Integration §3 step 8, §4, §9; Database_Schema (figma_images) |
 | 5.1 | LOCKED §5; Figma_Integration §6, §8; Requirements §4 |
 | 5.2 | LOCKED §4.1; Arch §6, §6.1; Requirements §3 |
 | 5.3 | LOCKED §4.3; Arch §9; Requirements §3.3 |
@@ -175,4 +177,4 @@ Legend: ⬜ Not started · 🟨 In progress · ✅ Done · ⛔ Out of scope
 
 ---
 
-**Status:** ✅ All stories `0.1`–`8.5` complete. Update statuses again if the plan is extended.
+**Status:** ✅ All stories complete, including `4.5`. Update statuses again if the plan is extended.

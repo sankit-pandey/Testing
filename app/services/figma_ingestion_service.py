@@ -1,8 +1,9 @@
 """Figma metadata ingestion — Design ref: `Figma_Integration.md` §3 step 8
 ("a service/API consumes the metadata JSON and populates ChromaDB"), §4, §9.
-Story 4.4 (the runtime counterpart of "load metadata"; the plugin/export
-step itself is design-time and out of app scope per
-`Implementation/Design_Traceability_Matrix.md`).
+Story 4.5 (the "Figma Ingestion API" in §3's sequence diagram; steps 1-7 of
+that same section — designer clones the workspace, runs the plugin, binds
+variables, exports the metadata JSON — are design-time and out of app scope
+per `Implementation/Design_Traceability_Matrix.md`).
 
 Consumes one "Build & Export Metadata" plugin output object (§4 JSON shape)
 per call: renders the baseline-language frame via Figma, embeds it, and

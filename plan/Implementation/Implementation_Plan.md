@@ -50,7 +50,7 @@ For each story:
 | **M1 — Core Domain & API** | 1.1–1.3 | Create products/projects/artifacts, upload files, auth/RBAC |
 | **M2 — Pipeline Framework** | 2.1–2.5 | Universal pipeline executes a no-op strategy with state, resilience, and parallel sub-task join |
 | **M3 — Real-time** | 3.1 | Live progress via WebSocket |
-| **M4 — Integrations** | 4.1–4.4 | Storage, Lokalise, ChromaDB, Figma clients (circuit-breakered) |
+| **M4 — Integrations** | 4.1–4.5 | Storage, Lokalise, ChromaDB, Figma render clients (circuit-breakered) + Figma metadata→ChromaDB ingestion |
 | **M5 — Image sub-pipeline** | 5.1 | Reusable image localization ready (needed by IFU) |
 | **M6 — IFU (first vertical slice)** | 5.2 | **IFU** localized end-to-end (text + images) |
 | **M7 — UI Resource** | 5.3 | **UI Resource** localized end-to-end |
@@ -197,13 +197,21 @@ Each story: **Goal · Scope · Depends on · Acceptance criteria · Validation**
 - **Acceptance:** known image returns match ≥ 90% with metadata.
 - **Validation:** seed vectors; query test.
 
-#### Story 4.4 — Figma service
-- **Design Refs:** Figma_Integration (all); Database_Schema (figma_images, translation_cache)
-- **Goal:** Render translated images.
+#### Story 4.4 — Figma service (runtime rendering)
+- **Design Refs:** Figma_Integration §5–§7; Database_Schema (figma_images, translation_cache)
+- **Goal:** Render translated images from **already-ingested** metadata (see 4.5 for how metadata/ChromaDB get populated in the first place).
 - **Scope:** load metadata; set variable values per target-language mode; render frame; export PNG (bbox/scale/format). See `Design/Figma_Integration.md`.
 - **Depends on:** 2.4, 4.1
 - **Acceptance:** given metadata + translations → PNG produced & stored.
 - **Validation:** mocked Figma API; asset stored.
+
+#### Story 4.5 — Figma metadata ingestion (ChromaDB population)
+- **Design Refs:** Figma_Integration §3 step 8, §4 (metadata JSON structure), §9 (DB/ChromaDB storage mapping); Database_Schema (`figma_images`)
+- **Goal:** Consume one "Build & Export Metadata" plugin output (design-time, external — steps 1–7 of Figma_Integration §3) and populate `figma_images` + ChromaDB so runtime matching (4.3) and rendering (4.4) have something to match/render against. This is the "Figma Ingestion API" participant in Figma_Integration §3's sequence diagram — **app code**, not design-time.
+- **Scope:** admin-facing endpoint accepting one frame's metadata JSON (Figma_Integration §4 shape) + `productId`; renders the baseline-language frame via the Figma export API to get reference-image bytes; embeds it (4.3's embedder); writes the `figma_images` row (field mapping per Figma_Integration §9) and the ChromaDB vector (metadata: `product_id`, `screen_name`, `figma_frame_id`, `figma_file_key`).
+- **Depends on:** 4.3, 4.4
+- **Acceptance:** given a valid metadata JSON + `productId` → a `figma_images` row and a ChromaDB vector both exist, and a subsequent 4.3 similarity query against the same (or a near-duplicate) reference image returns a match ≥ 90% referencing that row.
+- **Validation:** call the ingestion endpoint with a sample metadata JSON (Figma_Integration §4); confirm `figma_images` row + non-null `chromadb_id`; confirm a ChromaDB query with the rendered image returns it as the top match.
 
 ### Phase 5 — Strategies (vertical features)
 
@@ -338,7 +346,9 @@ Each story: **Goal · Scope · Depends on · Acceptance criteria · Validation**
 2.4 → 4.1 → 4.4
 2.4 → 4.2 (needs 3.1)
 2.4 → 4.3 → 5.1 ← 4.4
-4.3 + 4.4 → 5.1 (image sub-pipeline)
+4.3 + 4.4 → 4.5 (Figma metadata ingestion -> ChromaDB population)
+4.3 + 4.4 → 5.1 (image sub-pipeline; operationally needs 4.5 to have populated
+                 data, though 5.1's code only calls 4.3's query, not 4.5)
 5.1 + 4.2 + 2.5 → 5.2 (IFU, first slice)
 4.2 + 2.x + 3.1 → 5.3 (UI Resource)
 5.2 → 6.1 → 6.2 → 6.3
@@ -372,7 +382,8 @@ Each story: **Goal · Scope · Depends on · Acceptance criteria · Validation**
 | 4.1 | Storage service | ✅ | knewron-localization/ initial build |
 | 4.2 | Lokalise service | ✅ | knewron-localization/ initial build |
 | 4.3 | ChromaDB service | ✅ | knewron-localization/ initial build |
-| 4.4 | Figma service | ✅ | knewron-localization/ initial build |
+| 4.4 | Figma service (runtime rendering) | ✅ | knewron-localization/ initial build |
+| 4.5 | Figma metadata ingestion (ChromaDB population) | ✅ | knewron-localization/ initial build |
 | 5.1 | Image sub-pipeline | ✅ | knewron-localization/ initial build |
 | 5.2 | IFU strategy (first slice) | ✅ | knewron-localization/ initial build |
 | 5.3 | UI Resource strategy | ✅ | knewron-localization/ initial build |

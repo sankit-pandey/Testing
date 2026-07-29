@@ -53,7 +53,7 @@ class ChromaDBService:
     def add_image(
         self, image_id: uuid.UUID | str, image_bytes: bytes, metadata: dict[str, Any]
     ) -> str:
-        """Embed and store an image (Figma-sourced reference screenshots). Story 4.4/5.1."""
+        """Embed and store an image (Figma-sourced reference screenshots). Story 4.5."""
         chromadb_id = str(image_id)
         embedding = self._embedder.embed(image_bytes)
         stamped_metadata = {**metadata, "tenant_id": self.tenant_id}

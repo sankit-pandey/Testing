@@ -1,6 +1,7 @@
 """Figma integration — Design ref: `Figma_Integration.md` (all sections);
 `Technical_Design_Document.md` §2.1.5; `Database_Schema.md` §8 (`figma_images`).
-Story 4.4.
+Story 4.4 (runtime rendering); `export_frame` is also used by Story 4.5
+(metadata ingestion) to capture the baseline reference image for embedding.
 
 Implements exactly the operations `Figma_Integration.md` describes: load
 frame metadata (§4), set variable values for the target-language mode (§5,
